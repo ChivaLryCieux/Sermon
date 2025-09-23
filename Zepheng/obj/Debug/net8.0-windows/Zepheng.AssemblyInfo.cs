@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Zepheng")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1c6d789f02bf93254b391e4154a588fc3be738c4")]
 [assembly: System.Reflection.AssemblyProductAttribute("Zepheng")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Zepheng")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
