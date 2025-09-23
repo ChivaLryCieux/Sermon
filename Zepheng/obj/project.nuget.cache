@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "dgSpecHash": "3HJYVYfTfp0=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\bb287\\RiderProjects\\Zepheng\\Zepheng\\Zepheng.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\bb287\\.nuget\\packages\\avalonedit\\6.3.1.120\\avalonedit.6.3.1.120.nupkg.sha512",
+    "C:\\Users\\bb287\\.nuget\\packages\\controlzex\\7.0.1-rc0014\\controlzex.7.0.1-rc0014.nupkg.sha512",
+    "C:\\Users\\bb287\\.nuget\\packages\\mahapps.metro\\3.0.0-rc0525\\mahapps.metro.3.0.0-rc0525.nupkg.sha512",
+    "C:\\Users\\bb287\\.nuget\\packages\\mahapps.metro.iconpacks.core\\6.0.0\\mahapps.metro.iconpacks.core.6.0.0.nupkg.sha512",
+    "C:\\Users\\bb287\\.nuget\\packages\\mahapps.metro.iconpacks.material\\6.0.0\\mahapps.metro.iconpacks.material.6.0.0.nupkg.sha512",
+    "C:\\Users\\bb287\\.nuget\\packages\\markdig\\0.42.0\\markdig.0.42.0.nupkg.sha512",
+    "C:\\Users\\bb287\\.nuget\\packages\\microsoft.web.webview2\\1.0.3530-prerelease\\microsoft.web.webview2.1.0.3530-prerelease.nupkg.sha512",
+    "C:\\Users\\bb287\\.nuget\\packages\\microsoft.xaml.behaviors.wpf\\1.1.77\\microsoft.xaml.behaviors.wpf.1.1.77.nupkg.sha512",
+    "C:\\Users\\bb287\\.nuget\\packages\\system.memory\\4.6.2\\system.memory.4.6.2.nupkg.sha512",
+    "C:\\Users\\bb287\\.nuget\\packages\\system.text.json\\8.0.5\\system.text.json.8.0.5.nupkg.sha512"
+  ],
+  "logs": []
+}
