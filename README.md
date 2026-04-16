@@ -8,12 +8,6 @@
 
 一个简洁、克制、面向写作的 Markdown 编辑器，基于 WPF 和 .NET 10 开发。
 
-辛弃疾《贺新郎》
-甚矣吾衰矣。怅平生、交游零落，只今余几！白发空垂三千丈，一笑人间万事。
-问何物、能令公喜？我见青山多妩媚，料青山见我应如是。情与貌，略相似。
-一尊搔首东窗里。想渊明、停云诗就， **此时风味** 。江左沉酣求名者，岂识浊醪妙理。
-回首叫、云飞风起。不恨古人吾不见，恨古人不见吾狂耳。知我者，二三子。
-
 [功能特性](#-功能特性) • [安装使用](#-安装使用) • [技术架构](#-技术架构) • [开发指南](#-开发指南) • [许可证](#-许可证)
 
 </div>
@@ -224,52 +218,3 @@ private string ConvertMarkdownToHtml(string markdown)
         """;
 }
 ```
-
-### 贡献指南
-
-1. Fork 项目到您的GitHub账户
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 创建Pull Request
-
-## 📋 更新日志
-
-### v1.0.0 (当前版本)
-
-- ✅ 完整的Markdown编辑功能
-- ✅ 多视图模式支持
-- ✅ 瑞士风格 UI
-- ✅ 文件管理功能
-- ✅ 自动保存机制
-- ✅ 键盘快捷键支持
-- ✅ .NET 10 / win-x64 构建目标
-
-## 🎯 未来规划
-
-- [ ] 插件系统支持
-- [ ] 更多主题选择
-- [ ] 云同步功能
-- [ ] 数学公式支持
-- [ ] 图表绘制功能
-- [ ] 多语言国际化
-
-## 🐛 问题反馈
-
-如果您在使用过程中遇到任何问题，请通过以下方式联系我们：
-
-- 提交 [GitHub Issue](https://github.com/your-username/Sermon/issues)
-- 发送邮件至: [your-email@example.com]
-
-## 🤝 致谢
-
-感谢以下开源项目的支持：
-
-- [AvalonEdit](https://github.com/icsharpcode/AvalonEdit) - 强大的文本编辑器组件
-- [MahApps.Metro](https://github.com/MahApps/MahApps.Metro) - 现代化WPF界面库
-- [Markdig](https://github.com/lunet-io/markdig) - 高性能Markdown解析器
-- [Material Design Icons](https://materialdesignicons.com/) - 精美的图标库
-
-## 📄 许可证
-
-本项目基于 [Apache License 2.0](LICENSE) 许可证开源。
