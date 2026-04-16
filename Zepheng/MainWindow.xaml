@@ -7,7 +7,7 @@
         xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
         xmlns:mdi="clr-namespace:MahApps.Metro.IconPacks;assembly=MahApps.Metro.IconPacks.Material"
         mc:Ignorable="d"
-        Title="此风Zepheng - Markdown编辑器" Height="900" Width="1400"
+        Title="Sermon - Markdown编辑器" Height="900" Width="1400"
         WindowStartupLocation="CenterScreen"
         TitleCharacterCasing="Normal"
         Background="{DynamicResource MahApps.Brushes.ThemeBackground}">

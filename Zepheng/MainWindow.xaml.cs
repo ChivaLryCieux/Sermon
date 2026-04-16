@@ -1,10 +1,8 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
-using System.Text.RegularExpressions;
 using System.Windows.Input;
 using System.Windows.Threading;
 using ICSharpCode.AvalonEdit;
@@ -13,28 +11,27 @@ using ICSharpCode.AvalonEdit.Document;
 using ICSharpCode.AvalonEdit.Search;
 using Markdig;
 using System.Windows.Media;
-using MahApps.Metro;
 using MahApps.Metro.Controls;
-using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
-using System.Threading.Tasks;
 using System.Linq;
-using System.Text;
 using MessageBox = System.Windows.MessageBox;
 using Button = System.Windows.Controls.Button;
 using Orientation = System.Windows.Controls.Orientation;
 using FontFamily = System.Windows.Media.FontFamily;
-using HorizontalAlignment = System.Windows.HorizontalAlignment;
 
 namespace Zepheng 
 {
     public partial class MainWindow : MetroWindow
     {
         private readonly Dictionary<string, MetroTabItem> _openTabs = new Dictionary<string, MetroTabItem>();
-        private readonly Dictionary<string, ViewMode> _tabViewModes = new Dictionary<string, ViewMode>();
-        private readonly Dictionary<string, bool> _tabModified = new Dictionary<string, bool>();
+        private readonly Dictionary<MetroTabItem, ViewMode> _tabViewModes = new Dictionary<MetroTabItem, ViewMode>();
+        private readonly Dictionary<MetroTabItem, bool> _tabModified = new Dictionary<MetroTabItem, bool>();
+        private readonly MarkdownPipeline _markdownPipeline = new MarkdownPipelineBuilder()
+            .UseAdvancedExtensions()
+            .Build();
         private DispatcherTimer? _autoSaveTimer;
-        private string? _currentFilePath = null;
+        private DispatcherTimer? _previewRefreshTimer;
+        private MetroTabItem? _pendingPreviewTab;
         
         public enum ViewMode
         {
@@ -48,6 +45,7 @@ namespace Zepheng
             InitializeComponent();
             InitializeEditor();
             SetupAutoSave();
+            SetupPreviewRefresh();
             SetupKeyBindings();
             LoadMarkdownHighlighting();
         }
@@ -72,6 +70,15 @@ namespace Zepheng
             };
             _autoSaveTimer.Tick += AutoSave_Tick;
             _autoSaveTimer.Start();
+        }
+
+        private void SetupPreviewRefresh()
+        {
+            _previewRefreshTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(350)
+            };
+            _previewRefreshTimer.Tick += PreviewRefreshTimer_Tick;
         }
 
         private void SetupKeyBindings()
@@ -179,10 +186,10 @@ namespace Zepheng
                 {
                     try
                     {
-                        File.WriteAllText(filePath, textEditor.Text);
-                        _tabModified[filePath] = false;
-                        UpdateTabHeader(selectedTab, filePath);
-                        StatusTextBlock.Text = $"已保存: {Path.GetFileName(filePath)}";
+                            File.WriteAllText(filePath, textEditor.Text);
+                            _tabModified[selectedTab] = false;
+                            UpdateTabHeader(selectedTab);
+                            StatusTextBlock.Text = $"已保存: {Path.GetFileName(filePath)}";
                     }
                     catch (Exception ex)
                     {
@@ -216,15 +223,12 @@ namespace Zepheng
                             if (!string.IsNullOrEmpty(oldPath) && _openTabs.ContainsKey(oldPath))
                             {
                                 _openTabs.Remove(oldPath);
-                                _tabViewModes.Remove(oldPath);
-                                _tabModified.Remove(oldPath);
                             }
                             
                             selectedTab.Tag = dialog.FileName;
                             _openTabs[dialog.FileName] = selectedTab;
-                            _tabViewModes[dialog.FileName] = ViewMode.Edit;
-                            _tabModified[dialog.FileName] = false;
-                            UpdateTabHeader(selectedTab, dialog.FileName);
+                            _tabModified[selectedTab] = false;
+                            UpdateTabHeader(selectedTab);
                             StatusTextBlock.Text = $"已保存: {Path.GetFileName(dialog.FileName)}";
                         }
                         catch (Exception ex)
@@ -365,13 +369,9 @@ namespace Zepheng
         {
             if (EditorTabControl.SelectedItem is MetroTabItem selectedTab)
             {
-                var filePath = selectedTab.Tag as string;
-                if (!string.IsNullOrEmpty(filePath))
-                {
-                    _tabViewModes[filePath] = mode;
-                    UpdateTabView(selectedTab, mode);
-                    UpdateViewModeButtons(mode);
-                }
+                _tabViewModes[selectedTab] = mode;
+                UpdateTabView(selectedTab, mode);
+                UpdateViewModeButtons(mode);
             }
         }
 
@@ -422,7 +422,7 @@ namespace Zepheng
 
         private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show("此风Zepheng - 现代Markdown编辑器\n版本 1.0\n\n一个简洁而强大的Markdown编辑器。", "关于");
+            MessageBox.Show("Sermon - 现代Markdown编辑器\n版本 1.0\n\n一个简洁而强大的Markdown编辑器。", "关于");
         }
 
         // ===== 核心辅助方法 =====
@@ -430,7 +430,24 @@ namespace Zepheng
         {
             if (EditorTabControl.SelectedItem is MetroTabItem selectedTab)
             {
-                return GetTextEditorFromTab(selectedTab);
+                return GetActiveTextEditorFromTab(selectedTab);
+            }
+            return null;
+        }
+
+        private TextEditor? GetActiveTextEditorFromTab(MetroTabItem tab)
+        {
+            if (tab.Content is Grid containerGrid && containerGrid.Children.Count >= 3)
+            {
+                if (containerGrid.Children[2] is Grid splitGrid &&
+                    splitGrid.Visibility == Visibility.Visible &&
+                    splitGrid.Children.Count > 0 &&
+                    splitGrid.Children[0] is TextEditor splitTextEditor)
+                {
+                    return splitTextEditor;
+                }
+
+                return containerGrid.Children.OfType<TextEditor>().FirstOrDefault();
             }
             return null;
         }
@@ -439,24 +456,12 @@ namespace Zepheng
         {
             if (tab.Content is Grid containerGrid)
             {
-                foreach (var child in containerGrid.Children)
-                {
-                    if (child is TextEditor textEditor)
-                        return textEditor;
-                    if (child is Grid innerGrid)
-                    {
-                        foreach (var innerChild in innerGrid.Children)
-                        {
-                            if (innerChild is TextEditor innerTextEditor)
-                                return innerTextEditor;
-                        }
-                    }
-                }
+                return containerGrid.Children.OfType<TextEditor>().FirstOrDefault();
             }
             return null;
         }
 
-        private void CreateNewTab(string title, string content, string filePath)
+        private void CreateNewTab(string title, string content, string? filePath)
         {
             var textEditor = new TextEditor
             {
@@ -495,8 +500,9 @@ namespace Zepheng
                 FontSize = 14,
                 ShowLineNumbers = true,
                 WordWrap = true,
-                Text = content
+                Document = textEditor.Document
             };
+            textEditorClone.TextChanged += Editor_TextChanged;
             
             var webViewClone = new WebView2();
             var splitter = new GridSplitter
@@ -526,12 +532,13 @@ namespace Zepheng
                 Content = containerGrid,
                 Tag = filePath
             };
-            
+
+            _tabViewModes[newTab] = ViewMode.Edit;
+            _tabModified[newTab] = false;
+
             if (!string.IsNullOrEmpty(filePath))
             {
                 _openTabs[filePath] = newTab;
-                _tabViewModes[filePath] = ViewMode.Edit;
-                _tabModified[filePath] = false;
             }
             
             EditorTabControl.Items.Add(newTab);
@@ -560,11 +567,7 @@ namespace Zepheng
         
         private string ConvertMarkdownToHtml(string markdown)
         {
-            var pipeline = new MarkdownPipelineBuilder()
-                .UseAdvancedExtensions()
-                .Build();
-            
-            var htmlContent = Markdown.ToHtml(markdown, pipeline);
+            var htmlContent = Markdown.ToHtml(markdown, _markdownPipeline);
             
             return $@"
 <!DOCTYPE html>
@@ -654,36 +657,65 @@ namespace Zepheng
                         break;
                     case ViewMode.Preview:
                         if (webView != null) webView.Visibility = Visibility.Visible;
-                        if (textEditor != null)
-                        {
-                            var htmlContent = ConvertMarkdownToHtml(textEditor.Text);
-                            webView?.NavigateToString(htmlContent);
-                        }
+                        RefreshPreview(tab);
                         break;
                     case ViewMode.Split:
                         if (splitGrid != null) splitGrid.Visibility = Visibility.Visible;
                         if (splitGrid != null && splitGrid.Children.Count >= 3 && textEditor != null)
                         {
-                            var splitTextEditor = splitGrid.Children[0] as TextEditor;
-                            var splitWebView = splitGrid.Children[2] as WebView2;
-                            
-                            if (splitTextEditor != null)
-                            {
-                                splitTextEditor.Text = textEditor.Text;
-                            }
-                            
-                            if (splitWebView != null)
-                            {
-                                var htmlContent = ConvertMarkdownToHtml(textEditor.Text);
-                                splitWebView.NavigateToString(htmlContent);
-                            }
+                            RefreshPreview(tab);
                         }
                         break;
                 }
             }
         }
+
+        private void SchedulePreviewRefresh(MetroTabItem tab)
+        {
+            _pendingPreviewTab = tab;
+            _previewRefreshTimer?.Stop();
+            _previewRefreshTimer?.Start();
+        }
+
+        private void PreviewRefreshTimer_Tick(object? sender, EventArgs e)
+        {
+            _previewRefreshTimer?.Stop();
+            if (_pendingPreviewTab != null)
+            {
+                RefreshPreview(_pendingPreviewTab);
+                _pendingPreviewTab = null;
+            }
+        }
+
+        private void RefreshPreview(MetroTabItem tab)
+        {
+            if (tab.Content is not Grid containerGrid || containerGrid.Children.Count < 3)
+            {
+                return;
+            }
+
+            var textEditor = containerGrid.Children[0] as TextEditor;
+            if (textEditor == null)
+            {
+                return;
+            }
+
+            var htmlContent = ConvertMarkdownToHtml(textEditor.Text);
+            if (containerGrid.Children[1] is WebView2 webView && webView.Visibility == Visibility.Visible)
+            {
+                webView.NavigateToString(htmlContent);
+            }
+
+            if (containerGrid.Children[2] is Grid splitGrid &&
+                splitGrid.Visibility == Visibility.Visible &&
+                splitGrid.Children.Count >= 3 &&
+                splitGrid.Children[2] is WebView2 splitWebView)
+            {
+                splitWebView.NavigateToString(htmlContent);
+            }
+        }
         
-        private StackPanel CreateTabHeader(string fileName, string filePath)
+        private StackPanel CreateTabHeader(string fileName, string? filePath)
         {
             var stackPanel = new StackPanel { Orientation = Orientation.Horizontal };
             
@@ -695,7 +727,7 @@ namespace Zepheng
             closeButton.Width = 16;
             closeButton.Height = 16;
             closeButton.FontSize = 10;
-            closeButton.Tag = filePath;
+            closeButton.Tag = null;
             closeButton.Click += CloseTab_Click;
             
             stackPanel.Children.Add(textBlock);
@@ -704,15 +736,16 @@ namespace Zepheng
             return stackPanel;
         }
         
-        private void UpdateTabHeader(MetroTabItem tab, string filePath)
+        private void UpdateTabHeader(MetroTabItem tab)
         {
             if (tab.Header is StackPanel stackPanel && stackPanel.Children.Count > 0)
             {
                 var textBlock = stackPanel.Children[0] as TextBlock;
                 if (textBlock != null)
                 {
+                    var filePath = tab.Tag as string;
                     var fileName = string.IsNullOrEmpty(filePath) ? "新建文档.md" : Path.GetFileName(filePath);
-                    var isModified = !string.IsNullOrEmpty(filePath) && _tabModified.ContainsKey(filePath) && _tabModified[filePath];
+                    var isModified = _tabModified.TryGetValue(tab, out var modified) && modified;
                     textBlock.Text = isModified ? fileName + " *" : fileName;
                 }
             }
@@ -720,19 +753,25 @@ namespace Zepheng
         
         private void CloseTab_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button button && button.Tag is string filePath)
+            if (sender is DependencyObject source)
             {
-                if (_openTabs.ContainsKey(filePath))
+                var tab = FindParent<MetroTabItem>(source) ?? FindTabByHeaderButton(sender as Button);
+                if (tab != null)
                 {
-                    var tab = _openTabs[filePath];
-                    
-                    // 检查是否有未保存的更改
-                    if (_tabModified.ContainsKey(filePath) && _tabModified[filePath])
+                    var filePath = tab.Tag as string;
+
+                    if (_tabModified.TryGetValue(tab, out var isModified) && isModified)
                     {
-                        var result = MessageBox.Show($"文件 '{Path.GetFileName(filePath)}' 尚未保存，是否保存？", "确认", MessageBoxButton.YesNoCancel);
+                        var displayName = string.IsNullOrEmpty(filePath) ? "新建文档.md" : Path.GetFileName(filePath);
+                        var result = MessageBox.Show($"文件 '{displayName}' 尚未保存，是否保存？", "确认", MessageBoxButton.YesNoCancel);
                         if (result == MessageBoxResult.Yes)
                         {
+                            EditorTabControl.SelectedItem = tab;
                             SaveCurrentFile();
+                            if (_tabModified.TryGetValue(tab, out var stillModified) && stillModified)
+                            {
+                                return;
+                            }
                         }
                         else if (result == MessageBoxResult.Cancel)
                         {
@@ -741,11 +780,40 @@ namespace Zepheng
                     }
                     
                     EditorTabControl.Items.Remove(tab);
-                    _openTabs.Remove(filePath);
-                    _tabViewModes.Remove(filePath);
-                    _tabModified.Remove(filePath);
+                    if (!string.IsNullOrEmpty(filePath))
+                    {
+                        _openTabs.Remove(filePath);
+                    }
+                    _tabViewModes.Remove(tab);
+                    _tabModified.Remove(tab);
                 }
             }
+        }
+
+        private MetroTabItem? FindTabByHeaderButton(Button? button)
+        {
+            if (button == null)
+            {
+                return null;
+            }
+
+            return EditorTabControl.Items
+                .OfType<MetroTabItem>()
+                .FirstOrDefault(tab => tab.Header is StackPanel stackPanel && stackPanel.Children.Contains(button));
+        }
+
+        private static T? FindParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            var parent = VisualTreeHelper.GetParent(child);
+            while (parent != null)
+            {
+                if (parent is T typedParent)
+                {
+                    return typedParent;
+                }
+                parent = VisualTreeHelper.GetParent(parent);
+            }
+            return null;
         }
 
         private void OpenFolderMenuItem_Click(object sender, RoutedEventArgs e)
@@ -828,10 +896,7 @@ namespace Zepheng
         {
             if (EditorTabControl.SelectedItem is MetroTabItem selectedTab)
             {
-                var filePath = selectedTab.Tag as string;
-                _currentFilePath = filePath;
-                
-                if (!string.IsNullOrEmpty(filePath) && selectedTab.Content is Grid containerGrid)
+                if (selectedTab.Content is Grid)
                 {
                     var textEditor = GetTextEditorFromTab(selectedTab);
                     if (textEditor != null)
@@ -839,10 +904,9 @@ namespace Zepheng
                         UpdateWordCount(textEditor.Text);
                         UpdateCursorPosition(textEditor);
                         
-                        // 更新视图模式按钮
-                        if (_tabViewModes.ContainsKey(filePath))
+                        if (_tabViewModes.TryGetValue(selectedTab, out var viewMode))
                         {
-                            UpdateViewModeButtons(_tabViewModes[filePath]);
+                            UpdateViewModeButtons(viewMode);
                         }
                     }
                 }
@@ -859,17 +923,12 @@ namespace Zepheng
                 // 标记为已修改
                 if (EditorTabControl.SelectedItem is MetroTabItem selectedTab)
                 {
-                    var filePath = selectedTab.Tag as string;
-                    if (!string.IsNullOrEmpty(filePath))
+                    _tabModified[selectedTab] = true;
+                    UpdateTabHeader(selectedTab);
+
+                    if (_tabViewModes.TryGetValue(selectedTab, out var viewMode) && viewMode != ViewMode.Edit)
                     {
-                        _tabModified[filePath] = true;
-                        UpdateTabHeader(selectedTab, filePath);
-                        
-                        // 实时更新预览
-                        if (_tabViewModes.ContainsKey(filePath) && _tabViewModes[filePath] != ViewMode.Edit)
-                        {
-                            UpdateTabView(selectedTab, _tabViewModes[filePath]);
-                        }
+                        SchedulePreviewRefresh(selectedTab);
                     }
                 }
             }
@@ -879,12 +938,8 @@ namespace Zepheng
         {
             if (EditorTabControl.SelectedItem is MetroTabItem selectedTab)
             {
-                var filePath = selectedTab.Tag as string;
-                if (!string.IsNullOrEmpty(filePath))
-                {
-                    _tabModified[filePath] = true;
-                    UpdateTabHeader(selectedTab, filePath);
-                }
+                _tabModified[selectedTab] = true;
+                UpdateTabHeader(selectedTab);
             }
         }
         
@@ -904,20 +959,21 @@ namespace Zepheng
         
         private void AutoSave_Tick(object? sender, EventArgs e)
         {
-            foreach (var kvp in _tabModified)
+            foreach (var kvp in _tabModified.Where(kvp => kvp.Value).ToList())
             {
-                if (kvp.Value && !string.IsNullOrEmpty(kvp.Key) && _openTabs.ContainsKey(kvp.Key))
+                var tab = kvp.Key;
+                var filePath = tab.Tag as string;
+                if (!string.IsNullOrEmpty(filePath))
                 {
-                    var tab = _openTabs[kvp.Key];
                     var textEditor = GetTextEditorFromTab(tab);
                     if (textEditor != null)
                     {
                         try
                         {
-                            File.WriteAllText(kvp.Key, textEditor.Text);
-                            _tabModified[kvp.Key] = false;
-                            UpdateTabHeader(tab, kvp.Key);
-                            StatusTextBlock.Text = $"自动保存: {Path.GetFileName(kvp.Key)}";
+                            File.WriteAllText(filePath, textEditor.Text);
+                            _tabModified[tab] = false;
+                            UpdateTabHeader(tab);
+                            StatusTextBlock.Text = $"自动保存: {Path.GetFileName(filePath)}";
                         }
                         catch
                         {
@@ -934,7 +990,11 @@ namespace Zepheng
             var unsavedFiles = _tabModified.Where(kvp => kvp.Value).ToList();
             if (unsavedFiles.Any())
             {
-                var fileNames = string.Join(", ", unsavedFiles.Select(kvp => Path.GetFileName(kvp.Key)));
+                var fileNames = string.Join(", ", unsavedFiles.Select(kvp =>
+                {
+                    var filePath = kvp.Key.Tag as string;
+                    return string.IsNullOrEmpty(filePath) ? "新建文档.md" : Path.GetFileName(filePath);
+                }));
                 var result = MessageBox.Show(
                     $"以下文件尚未保存:\n{fileNames}\n\n是否保存所有更改？", 
                     "确认退出", 
@@ -944,17 +1004,34 @@ namespace Zepheng
                 {
                     foreach (var kvp in unsavedFiles)
                     {
-                        var tab = _openTabs[kvp.Key];
+                        var tab = kvp.Key;
+                        EditorTabControl.SelectedItem = tab;
                         var textEditor = GetTextEditorFromTab(tab);
                         if (textEditor != null)
                         {
-                            try
+                            var filePath = tab.Tag as string;
+                            if (string.IsNullOrEmpty(filePath))
                             {
-                                File.WriteAllText(kvp.Key, textEditor.Text);
+                                SaveCurrentFileAs();
                             }
-                            catch (Exception ex)
+                            else
                             {
-                                MessageBox.Show($"保存文件 {Path.GetFileName(kvp.Key)} 失败: {ex.Message}");
+                                try
+                                {
+                                    File.WriteAllText(filePath, textEditor.Text);
+                                    _tabModified[tab] = false;
+                                    UpdateTabHeader(tab);
+                                }
+                                catch (Exception ex)
+                                {
+                                    MessageBox.Show($"保存文件 {Path.GetFileName(filePath)} 失败: {ex.Message}");
+                                }
+                            }
+
+                            if (_tabModified.TryGetValue(tab, out var stillModified) && stillModified)
+                            {
+                                e.Cancel = true;
+                                return;
                             }
                         }
                     }

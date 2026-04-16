@@ -10,12 +10,12 @@
 using System;
 using System.Reflection;
 
-[assembly: System.Reflection.AssemblyCompanyAttribute("Zepheng")]
+[assembly: System.Reflection.AssemblyCompanyAttribute("Sermon")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1c6d789f02bf93254b391e4154a588fc3be738c4")]
-[assembly: System.Reflection.AssemblyProductAttribute("Zepheng")]
-[assembly: System.Reflection.AssemblyTitleAttribute("Zepheng")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d8e6deb316a8d7533a921031d141037ebdab1590")]
+[assembly: System.Reflection.AssemblyProductAttribute("Sermon")]
+[assembly: System.Reflection.AssemblyTitleAttribute("Sermon")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]

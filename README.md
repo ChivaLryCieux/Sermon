@@ -1,4 +1,4 @@
-# 此风Zepheng - Markdown编辑器
+# Sermon - Markdown编辑器
 
 <div align="center">
 
@@ -20,7 +20,7 @@
 
 ## 📖 项目简介
 
-此风Zepheng是一个专为Windows平台设计的现代化Markdown编辑器，采用Material Design风格，提供直观的用户界面和强大的编辑功能。无论是技术文档编写、博客创作还是日常笔记记录，都能为您提供出色的写作体验。
+Sermon 是一个专为 Windows 平台设计的现代化 Markdown 编辑器，采用 Material Design 风格，提供直观的用户界面和实用的编辑功能。无论是技术文档编写、博客创作还是日常笔记记录，都能提供顺手的写作体验。
 
 ## ✨ 功能特性
 
@@ -157,7 +157,7 @@ Zepheng/
 
 #### 主要类说明
 
-- `MainWindow`: 主窗口类，包含所有UI逻辑和事件处理
+- `MainWindow`: 主窗口类，包含所有 UI 逻辑和事件处理
 - `RelayCommand`: 实现ICommand接口的命令绑定类
 - `ViewMode`: 枚举类型，定义编辑器的视图模式
 
