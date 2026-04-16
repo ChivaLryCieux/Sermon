@@ -78,7 +78,7 @@ Sermon 是一个专为 Windows 平台设计的现代化 Markdown 编辑器，采
 ### 项目结构
 
 ```
-Zepheng/
+Sermon/
 ├── App.xaml                 # 应用程序入口
 ├── MainWindow.xaml          # 主窗口界面
 ├── MainWindow.xaml.cs       # 主窗口逻辑
@@ -86,7 +86,7 @@ Zepheng/
 ├── Markdown-Mode.xshd       # Markdown语法高亮配置
 ├── assets/                  # 资源文件
 │   └── icon.ico            # 应用程序图标
-└── Zepheng.csproj          # 项目文件
+└── Sermon.csproj           # 项目文件
 ```
 
 ## 🚀 安装使用
@@ -101,8 +101,8 @@ Zepheng/
 
 1. **克隆仓库**
    ```bash
-   git clone https://github.com/your-username/Zepheng.git
-   cd Zepheng
+   git clone https://github.com/your-username/Sermon.git
+   cd Sermon
    ```
 
 2. **还原依赖包**
@@ -150,7 +150,7 @@ Zepheng/
 推荐使用 **JetBrains Rider** 作为开发IDE，它提供了出色的.NET开发体验。
 
 1. **安装JetBrains Rider**
-2. **打开项目**: 选择 `Zepheng.sln` 解决方案文件
+2. **打开项目**: 选择 `Sermon.sln` 解决方案文件
 3. **配置SDK**: 确保安装了.NET 8.0 SDK
 
 ### 代码结构
@@ -214,7 +214,7 @@ private string ConvertMarkdownToHtml(string markdown)
 
 如果您在使用过程中遇到任何问题，请通过以下方式联系我们：
 
-- 提交 [GitHub Issue](https://github.com/your-username/Zepheng/issues)
+- 提交 [GitHub Issue](https://github.com/your-username/Sermon/issues)
 - 发送邮件至: [your-email@example.com]
 
 ## 🤝 致谢
