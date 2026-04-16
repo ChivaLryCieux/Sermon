@@ -466,14 +466,13 @@ namespace Sermon
             var textEditor = new TextEditor
             {
                 SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("Markdown"),
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 14,
                 ShowLineNumbers = true,
                 WordWrap = true,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 Text = content
             };
+            ConfigureSwissEditor(textEditor);
             
             textEditor.TextChanged += Editor_TextChanged;
             textEditor.Document.Changed += Document_Changed;
@@ -496,12 +495,11 @@ namespace Sermon
             var textEditorClone = new TextEditor
             {
                 SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("Markdown"),
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 14,
                 ShowLineNumbers = true,
                 WordWrap = true,
                 Document = textEditor.Document
             };
+            ConfigureSwissEditor(textEditorClone);
             textEditorClone.TextChanged += Editor_TextChanged;
             
             var webViewClone = new WebView2();
@@ -550,6 +548,18 @@ namespace Sermon
             
             UpdateWordCount(content);
         }
+
+        private static void ConfigureSwissEditor(TextEditor editor)
+        {
+            editor.FontFamily = new FontFamily("Cascadia Mono, Consolas");
+            editor.FontSize = 14;
+            editor.Padding = new Thickness(18);
+            editor.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 255));
+            editor.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(17, 17, 17));
+            editor.LineNumbersForeground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(128, 128, 128));
+            editor.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(216, 216, 216));
+            editor.BorderThickness = new Thickness(0);
+        }
         
         private async void InitializeWebView(WebView2 webView, string markdownContent)
         {
@@ -576,54 +586,58 @@ namespace Sermon
     <meta charset=""utf-8"">
     <style>
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.62;
+            color: #111;
+            max-width: 920px;
+            margin: 0;
+            padding: 32px 40px;
             background-color: #fff;
         }}
         h1, h2, h3, h4, h5, h6 {{
-            margin-top: 24px;
-            margin-bottom: 16px;
-            font-weight: 600;
-            line-height: 1.25;
+            margin-top: 28px;
+            margin-bottom: 14px;
+            font-weight: 700;
+            line-height: 1.18;
+            letter-spacing: 0;
         }}
-        h1 {{ border-bottom: 1px solid #eaecef; padding-bottom: 10px; }}
-        h2 {{ border-bottom: 1px solid #eaecef; padding-bottom: 8px; }}
+        h1 {{ border-bottom: 3px solid #111; padding-bottom: 12px; }}
+        h2 {{ border-bottom: 1px solid #d8d8d8; padding-bottom: 8px; }}
+        h3 {{ color: #E0001B; }}
         code {{
-            background-color: #f3f4f6;
+            background-color: #f0f0f0;
             padding: 2px 4px;
-            border-radius: 3px;
-            font-family: 'Courier New', monospace;
+            border-radius: 0;
+            font-family: 'Cascadia Mono', Consolas, monospace;
         }}
         pre {{
-            background-color: #f6f8fa;
-            border-radius: 6px;
+            background-color: #f5f5f5;
+            border-left: 4px solid #111;
+            border-radius: 0;
             padding: 16px;
             overflow: auto;
         }}
         blockquote {{
-            border-left: 4px solid #dfe2e5;
+            border-left: 4px solid #E0001B;
             padding-left: 16px;
-            color: #6a737d;
+            color: #555;
         }}
         table {{
             border-collapse: collapse;
             width: 100%;
         }}
         th, td {{
-            border: 1px solid #dfe2e5;
+            border: 1px solid #d8d8d8;
             padding: 8px 12px;
             text-align: left;
         }}
         th {{
-            background-color: #f6f8fa;
-            font-weight: 600;
+            background-color: #111;
+            color: #fff;
+            font-weight: 700;
         }}
         a {{
-            color: #0366d6;
+            color: #E0001B;
             text-decoration: none;
         }}
         a:hover {{

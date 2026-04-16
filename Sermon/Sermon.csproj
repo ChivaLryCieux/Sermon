@@ -8,6 +8,8 @@
         <UseWPF>true</UseWPF>
         <UseWindowsForms>true</UseWindowsForms>
         <EnableWindowsTargeting>true</EnableWindowsTargeting>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+        <SelfContained>false</SelfContained>
         <AssemblyName>Sermon</AssemblyName>
         <RootNamespace>Sermon</RootNamespace>
         <ApplicationIcon>assets\icon.ico</ApplicationIcon>
