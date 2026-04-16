@@ -3,10 +3,10 @@
 <div align="center">
 
 ![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
-![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)
+![.NET](https://img.shields.io/badge/.NET-10.0-purple.svg)
 ![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)
 
-一个功能丰富、简洁美观的现代化Markdown编辑器，基于WPF和.NET 8开发。
+一个简洁、克制、面向写作的 Markdown 编辑器，基于 WPF 和 .NET 10 开发。
 
 辛弃疾《贺新郎》
 甚矣吾衰矣。怅平生、交游零落，只今余几！白发空垂三千丈，一笑人间万事。
@@ -20,7 +20,7 @@
 
 ## 📖 项目简介
 
-Sermon 是一个专为 Windows 平台设计的现代化 Markdown 编辑器，采用 Material Design 风格，提供直观的用户界面和实用的编辑功能。无论是技术文档编写、博客创作还是日常笔记记录，都能提供顺手的写作体验。
+Sermon 是一个专为 Windows 平台设计的 Markdown 编辑器，采用 WPF 构建，界面以瑞士平面设计风格为主：清晰网格、黑白灰层级、红色强调、低装饰控件和明确的排版结构。它适合技术文档、博客草稿、讲章笔记和日常写作。
 
 ## ✨ 功能特性
 
@@ -31,7 +31,7 @@ Sermon 是一个专为 Windows 平台设计的现代化 Markdown 编辑器，采
   - 👁️ 预览模式：实时HTML渲染预览
   - ⚡ 分屏模式：同时显示编辑和预览界面
 
-- **强大的编辑工具**
+- **编辑工具**
   - 🛠️ 完整工具栏：快速格式化按钮
   - ⌨️ 键盘快捷键：提升编辑效率
   - 🎯 智能语法高亮：Markdown语法着色显示
@@ -48,11 +48,16 @@ Sermon 是一个专为 Windows 平台设计的现代化 Markdown 编辑器，采
 
 ### 🎨 用户界面
 
-- **现代化设计**
+- **瑞士风格界面**
+  - 黑白灰为主体，红色作为状态和结构强调
+  - 清晰的左侧文件区、分割线和编辑区网格
+  - 方正、低装饰的工具按钮和切换按钮
+  - 统一的编辑器和 Markdown 预览排版
+
+- **基础界面能力**
   - Material Design图标
-  - MahApps.Metro风格界面
-  - 明亮/暗黑主题切换
-  - 响应式布局设计
+  - MahApps.Metro窗口框架
+  - 低对比度边线和高可读状态栏
   - 状态栏信息：字数统计、光标位置
 
 ### 📝 Markdown支持
@@ -61,13 +66,13 @@ Sermon 是一个专为 Windows 平台设计的现代化 Markdown 编辑器，采
   - 标准Markdown语法
   - 扩展语法（表格、代码块、删除线等）
   - 实时预览渲染
-  - HTML导出功能
+  - 预览刷新防抖，减少输入时的重复渲染
 
 ## 🛠 技术架构
 
 ### 框架与依赖
 
-- **核心框架**: .NET 8.0 Windows
+- **核心框架**: .NET 10.0 Windows
 - **UI框架**: WPF (Windows Presentation Foundation)
 - **界面库**: MahApps.Metro 3.0
 - **图标库**: MahApps.Metro.IconPacks.Material 6.0
@@ -78,15 +83,20 @@ Sermon 是一个专为 Windows 平台设计的现代化 Markdown 编辑器，采
 ### 项目结构
 
 ```
-Sermon/
-├── App.xaml                 # 应用程序入口
-├── MainWindow.xaml          # 主窗口界面
-├── MainWindow.xaml.cs       # 主窗口逻辑
-├── RelayCommand.cs          # 命令绑定类
-├── Markdown-Mode.xshd       # Markdown语法高亮配置
-├── assets/                  # 资源文件
-│   └── icon.ico            # 应用程序图标
-└── Sermon.csproj           # 项目文件
+.
+├── Sermon.sln
+├── Directory.Build.props
+├── global.json
+├── README.md
+└── Sermon/
+    ├── App.xaml                 # 应用程序入口
+    ├── MainWindow.xaml          # 主窗口界面
+    ├── MainWindow.xaml.cs       # 主窗口逻辑
+    ├── RelayCommand.cs          # 命令绑定类
+    ├── Markdown-Mode.xshd       # Markdown语法高亮配置
+    ├── assets/
+    │   └── icon.ico             # 应用程序图标
+    └── Sermon.csproj            # 项目文件
 ```
 
 ## 🚀 安装使用
@@ -94,8 +104,11 @@ Sermon/
 ### 系统要求
 
 - **操作系统**: Windows 10/11 (版本1903或更高)
-- **运行时**: .NET 8.0 Runtime
+- **运行时**: .NET 10 Desktop Runtime
+- **Web预览**: Microsoft Edge WebView2 Runtime
 - **开发环境**: Visual Studio 2022 或 JetBrains Rider
+
+> WPF 依赖 `Microsoft.WindowsDesktop.App`，只能在 Windows 上运行。Linux/macOS 可以交叉构建 Windows 目标，但不能直接启动 Sermon。
 
 ### 从源码构建
 
@@ -107,18 +120,40 @@ Sermon/
 
 2. **还原依赖包**
    ```bash
-   dotnet restore
+   dotnet restore Sermon.sln
    ```
 
 3. **编译项目**
    ```bash
-   dotnet build
+   dotnet build Sermon.sln
    ```
 
-4. **运行应用**
+4. **运行应用（Windows）**
    ```bash
-   dotnet run
+   dotnet run --project Sermon/Sermon.csproj
    ```
+
+构建输出位于：
+
+```text
+Sermon/bin/Debug/net10.0-windows/win-x64/
+```
+
+在 Windows 上运行 `Sermon.exe`。如果在 Linux 上直接运行，会因为缺少 `Microsoft.WindowsDesktop.App` 而失败，这是 WPF 的平台限制。
+
+### 发布 Windows 版本
+
+依赖目标机器安装 .NET 10 Desktop Runtime：
+
+```bash
+dotnet publish Sermon/Sermon.csproj -c Release -r win-x64 --self-contained false
+```
+
+自包含发布，目标机器不需要单独安装 .NET Desktop Runtime：
+
+```bash
+dotnet publish Sermon/Sermon.csproj -c Release -r win-x64 --self-contained true
+```
 
 ### 使用指南
 
@@ -151,7 +186,7 @@ Sermon/
 
 1. **安装JetBrains Rider**
 2. **打开项目**: 选择 `Sermon.sln` 解决方案文件
-3. **配置SDK**: 确保安装了.NET 8.0 SDK
+3. **配置SDK**: 确保安装了 .NET 10 SDK；当前 `global.json` 固定到 `10.0.104`
 
 ### 代码结构
 
@@ -172,13 +207,21 @@ public enum ViewMode
     Split     // 分屏模式
 }
 
-// Markdown转HTML
+// Markdown 转 HTML
 private string ConvertMarkdownToHtml(string markdown)
 {
-    var pipeline = new MarkdownPipelineBuilder()
-        .UseAdvancedExtensions()
-        .Build();
-    return Markdown.ToHtml(markdown, pipeline);
+    var htmlContent = Markdown.ToHtml(markdown, _markdownPipeline);
+    return $"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+        </head>
+        <body>
+        {htmlContent}
+        </body>
+        </html>
+        """;
 }
 ```
 
@@ -196,10 +239,11 @@ private string ConvertMarkdownToHtml(string markdown)
 
 - ✅ 完整的Markdown编辑功能
 - ✅ 多视图模式支持
-- ✅ 现代化UI设计
+- ✅ 瑞士风格 UI
 - ✅ 文件管理功能
 - ✅ 自动保存机制
 - ✅ 键盘快捷键支持
+- ✅ .NET 10 / win-x64 构建目标
 
 ## 🎯 未来规划
 
