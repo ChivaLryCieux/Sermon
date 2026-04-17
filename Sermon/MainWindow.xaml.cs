@@ -23,9 +23,10 @@ namespace Sermon
 {
     public partial class MainWindow : MetroWindow
     {
-        private readonly Dictionary<string, MetroTabItem> _openTabs = new Dictionary<string, MetroTabItem>();
-        private readonly Dictionary<MetroTabItem, ViewMode> _tabViewModes = new Dictionary<MetroTabItem, ViewMode>();
-        private readonly Dictionary<MetroTabItem, bool> _tabModified = new Dictionary<MetroTabItem, bool>();
+        private const string DefaultNewFileName = "新建文档.md";
+        private readonly Dictionary<string, MetroTabItem> _openTabs = new();
+        private readonly Dictionary<MetroTabItem, ViewMode> _tabViewModes = new();
+        private readonly Dictionary<MetroTabItem, bool> _tabModified = new();
         private readonly MarkdownPipeline _markdownPipeline = new MarkdownPipelineBuilder()
             .UseAdvancedExtensions()
             .Build();
@@ -138,7 +139,7 @@ namespace Sermon
         // ===== 文件操作 =====
         private void NewFileMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            CreateNewTab("新建文档.md", "", null!);
+            CreateNewTab(DefaultNewFileName, string.Empty, null);
         }
 
         private void OpenFileMenuItem_Click(object sender, RoutedEventArgs e)
@@ -181,20 +182,9 @@ namespace Sermon
                     return;
                 }
 
-                var textEditor = GetTextEditorFromTab(selectedTab);
-                if (textEditor != null)
+                if (TrySaveTabToFile(selectedTab, filePath))
                 {
-                    try
-                    {
-                            File.WriteAllText(filePath, textEditor.Text);
-                            _tabModified[selectedTab] = false;
-                            UpdateTabHeader(selectedTab);
-                            StatusTextBlock.Text = $"已保存: {Path.GetFileName(filePath)}";
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"保存文件失败: {ex.Message}");
-                    }
+                    StatusTextBlock.Text = $"已保存: {Path.GetFileName(filePath)}";
                 }
             }
         }
@@ -211,30 +201,18 @@ namespace Sermon
 
                 if (dialog.ShowDialog() == true)
                 {
-                    var textEditor = GetTextEditorFromTab(selectedTab);
-                    if (textEditor != null)
+                    if (TrySaveTabToFile(selectedTab, dialog.FileName))
                     {
-                        try
+                        // 更新标签页信息
+                        var oldPath = selectedTab.Tag as string;
+                        if (!string.IsNullOrEmpty(oldPath))
                         {
-                            File.WriteAllText(dialog.FileName, textEditor.Text);
-                            
-                            // 更新标签页信息
-                            var oldPath = selectedTab.Tag as string;
-                            if (!string.IsNullOrEmpty(oldPath) && _openTabs.ContainsKey(oldPath))
-                            {
-                                _openTabs.Remove(oldPath);
-                            }
-                            
-                            selectedTab.Tag = dialog.FileName;
-                            _openTabs[dialog.FileName] = selectedTab;
-                            _tabModified[selectedTab] = false;
-                            UpdateTabHeader(selectedTab);
-                            StatusTextBlock.Text = $"已保存: {Path.GetFileName(dialog.FileName)}";
+                            _openTabs.Remove(oldPath);
                         }
-                        catch (Exception ex)
-                        {
-                            MessageBox.Show($"保存文件失败: {ex.Message}");
-                        }
+
+                        selectedTab.Tag = dialog.FileName;
+                        _openTabs[dialog.FileName] = selectedTab;
+                        StatusTextBlock.Text = $"已保存: {Path.GetFileName(dialog.FileName)}";
                     }
                 }
             }
@@ -332,6 +310,31 @@ namespace Sermon
             if (textEditor == null) return;
 
             textEditor.Document.Insert(textEditor.CaretOffset, text);
+        }
+
+        private bool TrySaveTabToFile(MetroTabItem tab, string filePath, bool showError = true)
+        {
+            var textEditor = GetTextEditorFromTab(tab);
+            if (textEditor == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                File.WriteAllText(filePath, textEditor.Text);
+                _tabModified[tab] = false;
+                UpdateTabHeader(tab);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (showError)
+                {
+                    MessageBox.Show($"保存文件失败: {ex.Message}");
+                }
+                return false;
+            }
         }
         
         // ===== 视图模式切换 =====
@@ -758,7 +761,7 @@ namespace Sermon
                 if (textBlock != null)
                 {
                     var filePath = tab.Tag as string;
-                    var fileName = string.IsNullOrEmpty(filePath) ? "新建文档.md" : Path.GetFileName(filePath);
+                    var fileName = string.IsNullOrEmpty(filePath) ? DefaultNewFileName : Path.GetFileName(filePath);
                     var isModified = _tabModified.TryGetValue(tab, out var modified) && modified;
                     textBlock.Text = isModified ? fileName + " *" : fileName;
                 }
@@ -776,7 +779,7 @@ namespace Sermon
 
                     if (_tabModified.TryGetValue(tab, out var isModified) && isModified)
                     {
-                        var displayName = string.IsNullOrEmpty(filePath) ? "新建文档.md" : Path.GetFileName(filePath);
+                        var displayName = string.IsNullOrEmpty(filePath) ? DefaultNewFileName : Path.GetFileName(filePath);
                         var result = MessageBox.Show($"文件 '{displayName}' 尚未保存，是否保存？", "确认", MessageBoxButton.YesNoCancel);
                         if (result == MessageBoxResult.Yes)
                         {
@@ -888,9 +891,9 @@ namespace Sermon
 
         private void OpenFileInNewTab(string filePath)
         {
-            if (_openTabs.ContainsKey(filePath))
+            if (_openTabs.TryGetValue(filePath, out var existingTab))
             {
-                EditorTabControl.SelectedItem = _openTabs[filePath];
+                EditorTabControl.SelectedItem = existingTab;
                 return;
             }
 
@@ -934,16 +937,11 @@ namespace Sermon
                 UpdateWordCount(textEditor.Text);
                 UpdateCursorPosition(textEditor);
                 
-                // 标记为已修改
-                if (EditorTabControl.SelectedItem is MetroTabItem selectedTab)
+                if (EditorTabControl.SelectedItem is MetroTabItem selectedTab &&
+                    _tabViewModes.TryGetValue(selectedTab, out var viewMode) &&
+                    viewMode != ViewMode.Edit)
                 {
-                    _tabModified[selectedTab] = true;
-                    UpdateTabHeader(selectedTab);
-
-                    if (_tabViewModes.TryGetValue(selectedTab, out var viewMode) && viewMode != ViewMode.Edit)
-                    {
-                        SchedulePreviewRefresh(selectedTab);
-                    }
+                    SchedulePreviewRefresh(selectedTab);
                 }
             }
         }
@@ -979,20 +977,9 @@ namespace Sermon
                 var filePath = tab.Tag as string;
                 if (!string.IsNullOrEmpty(filePath))
                 {
-                    var textEditor = GetTextEditorFromTab(tab);
-                    if (textEditor != null)
+                    if (TrySaveTabToFile(tab, filePath, showError: false))
                     {
-                        try
-                        {
-                            File.WriteAllText(filePath, textEditor.Text);
-                            _tabModified[tab] = false;
-                            UpdateTabHeader(tab);
-                            StatusTextBlock.Text = $"自动保存: {Path.GetFileName(filePath)}";
-                        }
-                        catch
-                        {
-                            // 自动保存失败时忽略错误
-                        }
+                        StatusTextBlock.Text = $"自动保存: {Path.GetFileName(filePath)}";
                     }
                 }
             }
@@ -1007,7 +994,7 @@ namespace Sermon
                 var fileNames = string.Join(", ", unsavedFiles.Select(kvp =>
                 {
                     var filePath = kvp.Key.Tag as string;
-                    return string.IsNullOrEmpty(filePath) ? "新建文档.md" : Path.GetFileName(filePath);
+                    return string.IsNullOrEmpty(filePath) ? DefaultNewFileName : Path.GetFileName(filePath);
                 }));
                 var result = MessageBox.Show(
                     $"以下文件尚未保存:\n{fileNames}\n\n是否保存所有更改？", 
@@ -1020,33 +1007,20 @@ namespace Sermon
                     {
                         var tab = kvp.Key;
                         EditorTabControl.SelectedItem = tab;
-                        var textEditor = GetTextEditorFromTab(tab);
-                        if (textEditor != null)
+                        var filePath = tab.Tag as string;
+                        if (string.IsNullOrEmpty(filePath))
                         {
-                            var filePath = tab.Tag as string;
-                            if (string.IsNullOrEmpty(filePath))
-                            {
-                                SaveCurrentFileAs();
-                            }
-                            else
-                            {
-                                try
-                                {
-                                    File.WriteAllText(filePath, textEditor.Text);
-                                    _tabModified[tab] = false;
-                                    UpdateTabHeader(tab);
-                                }
-                                catch (Exception ex)
-                                {
-                                    MessageBox.Show($"保存文件 {Path.GetFileName(filePath)} 失败: {ex.Message}");
-                                }
-                            }
+                            SaveCurrentFileAs();
+                        }
+                        else
+                        {
+                            TrySaveTabToFile(tab, filePath);
+                        }
 
-                            if (_tabModified.TryGetValue(tab, out var stillModified) && stillModified)
-                            {
-                                e.Cancel = true;
-                                return;
-                            }
+                        if (_tabModified.TryGetValue(tab, out var stillModified) && stillModified)
+                        {
+                            e.Cancel = true;
+                            return;
                         }
                     }
                 }
