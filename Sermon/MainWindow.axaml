@@ -1,0 +1,166 @@
+<Window x:Class="Sermon.MainWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sermon - Markdown编辑器"
+        Width="1400"
+        Height="900"
+        MinWidth="960"
+        MinHeight="640"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Inter, Segoe UI, Noto Sans CJK SC"
+        Background="#F5F5F5">
+
+  <Window.Resources>
+    <SolidColorBrush x:Key="SwissBackgroundBrush" Color="#F5F5F5" />
+    <SolidColorBrush x:Key="SwissSurfaceBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SwissTextBrush" Color="#111111" />
+    <SolidColorBrush x:Key="SwissMutedTextBrush" Color="#666666" />
+    <SolidColorBrush x:Key="SwissLineBrush" Color="#D8D8D8" />
+    <SolidColorBrush x:Key="SwissAccentBrush" Color="#E0001B" />
+    <SolidColorBrush x:Key="SwissHoverBrush" Color="#ECECEC" />
+  </Window.Resources>
+
+  <Grid Background="{StaticResource SwissBackgroundBrush}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <Menu Grid.Row="0" Background="{StaticResource SwissSurfaceBrush}" Padding="12,0">
+      <MenuItem Header="_文件(F)">
+        <MenuItem Header="_新建" Click="NewFileMenuItem_Click" HotKey="Ctrl+N" />
+        <MenuItem Header="_打开文件..." Click="OpenFileMenuItem_Click" HotKey="Ctrl+O" />
+        <MenuItem Header="_打开文件夹..." Click="OpenFolderMenuItem_Click" HotKey="Ctrl+Shift+O" />
+        <Separator />
+        <MenuItem Header="_保存" Click="SaveMenuItem_Click" HotKey="Ctrl+S" />
+        <MenuItem Header="_另存为..." Click="SaveAsMenuItem_Click" HotKey="Ctrl+Shift+S" />
+        <Separator />
+        <MenuItem Header="_退出" Click="ExitMenuItem_Click" />
+      </MenuItem>
+      <MenuItem Header="_编辑(E)">
+        <MenuItem Header="_查找" Click="FindMenuItem_Click" HotKey="Ctrl+F" />
+        <MenuItem Header="_替换" Click="ReplaceMenuItem_Click" HotKey="Ctrl+H" />
+      </MenuItem>
+      <MenuItem Header="_视图(V)">
+        <MenuItem Header="_编辑模式" Click="EditModeMenuItem_Click" />
+        <MenuItem Header="_预览模式" Click="PreviewModeMenuItem_Click" />
+        <MenuItem Header="_分屏模式" Click="SplitModeMenuItem_Click" />
+        <Separator />
+        <MenuItem Header="_明亮主题" Click="LightThemeMenuItem_Click" />
+        <MenuItem Header="_暗黑主题" Click="DarkThemeMenuItem_Click" />
+      </MenuItem>
+      <MenuItem Header="_工具(T)">
+        <MenuItem Header="_设置" Click="SettingsMenuItem_Click" />
+      </MenuItem>
+      <MenuItem Header="_帮助(H)">
+        <MenuItem Header="_关于" Click="AboutMenuItem_Click" />
+      </MenuItem>
+    </Menu>
+
+    <Border Grid.Row="1"
+            Background="{StaticResource SwissSurfaceBrush}"
+            BorderBrush="{StaticResource SwissLineBrush}"
+            BorderThickness="0,1,0,1"
+            Padding="12,6">
+      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <Button Content="新建" Click="NewFileMenuItem_Click" />
+          <Button Content="打开" Click="OpenFileMenuItem_Click" />
+          <Button Content="保存" Click="SaveMenuItem_Click" />
+          <Border Width="1" Margin="8,2" Background="{StaticResource SwissLineBrush}" />
+          <Button Content="B" FontWeight="Bold" Click="BoldButton_Click" />
+          <Button Content="I" FontStyle="Italic" Click="ItalicButton_Click" />
+          <Button Click="StrikethroughButton_Click">
+            <TextBlock Text="S" TextDecorations="Strikethrough" />
+          </Button>
+          <ComboBox x:Name="HeadingComboBox"
+                    Width="120"
+                    Margin="8,0"
+                    SelectionChanged="HeadingComboBox_SelectionChanged">
+            <ComboBoxItem Content="普通文本" Tag="" />
+            <ComboBoxItem Content="标题 1" Tag="# " />
+            <ComboBoxItem Content="标题 2" Tag="## " />
+            <ComboBoxItem Content="标题 3" Tag="### " />
+            <ComboBoxItem Content="标题 4" Tag="#### " />
+            <ComboBoxItem Content="标题 5" Tag="##### " />
+            <ComboBoxItem Content="标题 6" Tag="###### " />
+          </ComboBox>
+          <Button Content="列表" Click="BulletListButton_Click" />
+          <Button Content="编号" Click="NumberedListButton_Click" />
+          <Button Content="链接" Click="LinkButton_Click" />
+          <Button Content="图片" Click="ImageButton_Click" />
+          <Button Content="代码" Click="CodeBlockButton_Click" />
+          <Button Content="表格" Click="TableButton_Click" />
+          <Border Width="1" Margin="8,2" Background="{StaticResource SwissLineBrush}" />
+          <ToggleButton x:Name="EditModeToggle" Content="编辑" IsChecked="True" Click="EditModeToggle_Click" />
+          <ToggleButton x:Name="PreviewModeToggle" Content="预览" Click="PreviewModeToggle_Click" />
+          <ToggleButton x:Name="SplitModeToggle" Content="分屏" Click="SplitModeToggle_Click" />
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+
+    <Grid Grid.Row="2" Margin="18">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="260" MinWidth="180" />
+        <ColumnDefinition Width="5" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+
+      <Border Grid.Column="0"
+              Background="{StaticResource SwissSurfaceBrush}"
+              BorderBrush="{StaticResource SwissLineBrush}"
+              BorderThickness="1">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="1" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+
+          <DockPanel Grid.Row="0" Margin="14,12">
+            <Border Width="4"
+                    Height="18"
+                    Background="{StaticResource SwissAccentBrush}"
+                    Margin="0,0,10,0" />
+            <TextBlock Text="文件资源管理器"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center" />
+          </DockPanel>
+          <Border Grid.Row="1" Background="{StaticResource SwissLineBrush}" />
+          <TreeView x:Name="FileTreeView"
+                    Grid.Row="2"
+                    Margin="12"
+                    SelectionChanged="FileTreeView_SelectionChanged" />
+        </Grid>
+      </Border>
+
+      <GridSplitter Grid.Column="1"
+                    Width="5"
+                    HorizontalAlignment="Stretch"
+                    Background="{StaticResource SwissLineBrush}" />
+
+      <TabControl x:Name="EditorTabControl"
+                  Grid.Column="2"
+                  Margin="18,0,0,0"
+                  SelectionChanged="EditorTabControl_SelectionChanged"
+                  Background="{StaticResource SwissSurfaceBrush}"
+                  BorderBrush="{StaticResource SwissLineBrush}"
+                  BorderThickness="1" />
+    </Grid>
+
+    <Border Grid.Row="3"
+            Background="{StaticResource SwissSurfaceBrush}"
+            BorderBrush="{StaticResource SwissLineBrush}"
+            BorderThickness="0,1,0,0"
+            Padding="12,6">
+      <Grid ColumnDefinitions="Auto,Auto,*">
+        <TextBlock x:Name="WordCountTextBlock" Text="字数: 0  字符: 0" />
+        <TextBlock x:Name="CursorPositionTextBlock" Grid.Column="1" Margin="24,0,0,0" Text="行: 1, 列: 1" />
+        <TextBlock x:Name="StatusTextBlock" Grid.Column="2" HorizontalAlignment="Right" Text="准备就绪" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

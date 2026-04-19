@@ -4,29 +4,24 @@
         <OutputType>WinExe</OutputType>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
         <SelfContained>false</SelfContained>
         <AssemblyName>Sermon</AssemblyName>
         <RootNamespace>Sermon</RootNamespace>
-        <ApplicationIcon>assets\icon.ico</ApplicationIcon>
+        <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
-      <PackageReference Include="MahApps.Metro" Version="3.0.0-rc0525" />
-      <PackageReference Include="MahApps.Metro.IconPacks.Material" Version="6.0.0" />
-      <PackageReference Include="Markdig" Version="0.42.0" />
-      <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3530-prerelease" />
+      <PackageReference Include="Avalonia" Version="11.3.14" />
+      <PackageReference Include="Avalonia.Desktop" Version="11.3.14" />
+      <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.14" />
+      <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.14" />
+      <PackageReference Include="Avalonia.AvaloniaEdit" Version="11.4.1" />
     </ItemGroup>
 
     <ItemGroup>
       <None Update="Markdown-Mode.xshd">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-    </ItemGroup>
-    <ItemGroup>
-      <None Remove="assets\icon.ico" />
-      <Resource Include="assets\icon.ico" />
     </ItemGroup>
 
 </Project>
