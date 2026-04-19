@@ -106,6 +106,8 @@
         <ColumnDefinition Width="260" MinWidth="180" />
         <ColumnDefinition Width="5" />
         <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="5" />
+        <ColumnDefinition Width="340" MinWidth="280" />
       </Grid.ColumnDefinitions>
 
       <Border Grid.Column="0"
@@ -149,6 +151,55 @@
                   Background="{StaticResource SwissSurfaceBrush}"
                   BorderBrush="{StaticResource SwissLineBrush}"
                   BorderThickness="1" />
+
+      <GridSplitter Grid.Column="3"
+                    Width="5"
+                    HorizontalAlignment="Stretch"
+                    Background="{StaticResource SwissLineBrush}" />
+
+      <Border Grid.Column="4"
+              Margin="18,0,0,0"
+              Background="{StaticResource SwissSurfaceBrush}"
+              BorderBrush="{StaticResource SwissLineBrush}"
+              BorderThickness="1">
+        <Grid RowDefinitions="Auto,1,Auto,Auto,Auto,*">
+          <DockPanel Grid.Row="0" Margin="14,12">
+            <Border Width="4"
+                    Height="18"
+                    Background="{StaticResource SwissAccentBrush}"
+                    Margin="0,0,10,0" />
+            <TextBlock Text="AI 记忆管理"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center" />
+          </DockPanel>
+          <Border Grid.Row="1" Background="{StaticResource SwissLineBrush}" />
+          <TextBlock x:Name="MemoryStatsTextBlock"
+                     Grid.Row="2"
+                     Margin="14,10,14,6"
+                     Foreground="{StaticResource SwissMutedTextBrush}"
+                     Text="记忆: 0 条  热门标签: -" />
+          <TextBox x:Name="MemorySearchTextBox"
+                   Grid.Row="3"
+                   Margin="14,0,14,8"
+                   Watermark="检索记忆（关键词）"
+                   TextChanged="MemorySearchTextBox_TextChanged" />
+          <TextBox x:Name="MemoryIntentTextBox"
+                   Grid.Row="4"
+                   Margin="14,0,14,8"
+                   Watermark="输入当前任务意图（用于生成上下文包）" />
+          <Grid Grid.Row="5" Margin="14,0,14,14" RowDefinitions="Auto,*">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button Content="提取当前文档记忆" Click="ExtractMemoryButton_Click" />
+              <Button Content="生成上下文包" Click="GenerateContextPackButton_Click" />
+              <Button Content="删除选中" Click="DeleteSelectedMemoryButton_Click" />
+            </StackPanel>
+            <ListBox x:Name="MemoryListBox"
+                     Grid.Row="1"
+                     Margin="0,10,0,0" />
+          </Grid>
+        </Grid>
+      </Border>
     </Grid>
 
     <Border Grid.Row="3"

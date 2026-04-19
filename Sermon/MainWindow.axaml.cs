@@ -56,6 +56,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         BindNamedControls();
         InitializeEditor();
+        InitializeMemorySystem();
         SetupAutoSave();
         SetupPreviewRefresh();
         SetupKeyBindings();
@@ -1033,6 +1034,8 @@ public partial class MainWindow : Window
         {
             UpdateViewModeButtons(viewMode);
         }
+
+        SyncMemoryPanelWithCurrentTab();
     }
 
     private void Editor_TextChanged(object? sender, EventArgs e)
