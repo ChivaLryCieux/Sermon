@@ -20,6 +20,33 @@
     <SolidColorBrush x:Key="SwissHoverBrush" Color="#ECECEC" />
   </Window.Resources>
 
+  <Window.Styles>
+    <Style Selector="Button">
+      <Setter Property="Background" Value="{StaticResource SwissSurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SwissLineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{StaticResource SwissTextBrush}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinHeight" Value="30" />
+    </Style>
+    <Style Selector="Button:pointerover">
+      <Setter Property="Background" Value="{StaticResource SwissHoverBrush}" />
+    </Style>
+    <Style Selector="ToggleButton">
+      <Setter Property="Background" Value="{StaticResource SwissSurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SwissLineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{StaticResource SwissTextBrush}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinHeight" Value="30" />
+    </Style>
+    <Style Selector="ToggleButton:checked">
+      <Setter Property="Background" Value="{StaticResource SwissAccentBrush}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="{StaticResource SwissAccentBrush}" />
+    </Style>
+  </Window.Styles>
+
   <Grid Background="{StaticResource SwissBackgroundBrush}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -47,6 +74,8 @@
         <MenuItem Header="_编辑模式" Click="EditModeMenuItem_Click" />
         <MenuItem Header="_预览模式" Click="PreviewModeMenuItem_Click" />
         <MenuItem Header="_分屏模式" Click="SplitModeMenuItem_Click" />
+        <Separator />
+        <MenuItem Header="_AI记忆面板" Click="ToggleMemoryPanelMenuItem_Click" />
         <Separator />
         <MenuItem Header="_明亮主题" Click="LightThemeMenuItem_Click" />
         <MenuItem Header="_暗黑主题" Click="DarkThemeMenuItem_Click" />
@@ -97,11 +126,15 @@
           <ToggleButton x:Name="EditModeToggle" Content="编辑" IsChecked="True" Click="EditModeToggle_Click" />
           <ToggleButton x:Name="PreviewModeToggle" Content="预览" Click="PreviewModeToggle_Click" />
           <ToggleButton x:Name="SplitModeToggle" Content="分屏" Click="SplitModeToggle_Click" />
+          <ToggleButton x:Name="MemoryPanelToggle"
+                        Content="记忆面板"
+                        IsChecked="False"
+                        Click="MemoryPanelToggle_Click" />
         </StackPanel>
       </ScrollViewer>
     </Border>
 
-    <Grid Grid.Row="2" Margin="18">
+    <Grid x:Name="MainContentGrid" Grid.Row="2" Margin="18">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="260" MinWidth="180" />
         <ColumnDefinition Width="5" />
@@ -152,12 +185,14 @@
                   BorderBrush="{StaticResource SwissLineBrush}"
                   BorderThickness="1" />
 
-      <GridSplitter Grid.Column="3"
+      <GridSplitter x:Name="MemoryPanelSplitter"
+                    Grid.Column="3"
                     Width="5"
                     HorizontalAlignment="Stretch"
                     Background="{StaticResource SwissLineBrush}" />
 
-      <Border Grid.Column="4"
+      <Border x:Name="MemoryPanelBorder"
+              Grid.Column="4"
               Margin="18,0,0,0"
               Background="{StaticResource SwissSurfaceBrush}"
               BorderBrush="{StaticResource SwissLineBrush}"

@@ -35,8 +35,7 @@ public partial class MainWindow
             _memoryEntries.Clear();
             _memoryEntries.AddRange(loaded.OrderByDescending(x => x.UpdatedAt));
             _memoryLoaded = true;
-            RefreshMemoryList(_memorySearchTextBox.Text);
-            UpdateMemoryStats();
+            RefreshMemoryUi();
         }
         catch (Exception ex)
         {
@@ -106,8 +105,7 @@ public partial class MainWindow
         var extracted = _memoryEngine.ExtractFromMarkdown(content, sourcePath);
         var mergedCount = MergeMemories(extracted);
         await SaveMemoryStoreAsync();
-        RefreshMemoryList(_memorySearchTextBox.Text);
-        UpdateMemoryStats();
+        RefreshMemoryUi();
         _statusTextBlock.Text = $"记忆提取完成，新增/更新 {mergedCount} 条";
     }
 
@@ -146,8 +144,7 @@ public partial class MainWindow
 
         _memoryEntries.Remove(match);
         await SaveMemoryStoreAsync();
-        RefreshMemoryList(_memorySearchTextBox.Text);
-        UpdateMemoryStats();
+        RefreshMemoryUi();
         _statusTextBlock.Text = "已删除选中的记忆";
     }
 
@@ -157,6 +154,11 @@ public partial class MainWindow
     }
 
     private void SyncMemoryPanelWithCurrentTab()
+    {
+        RefreshMemoryUi();
+    }
+
+    private void RefreshMemoryUi()
     {
         RefreshMemoryList(_memorySearchTextBox.Text);
         UpdateMemoryStats();

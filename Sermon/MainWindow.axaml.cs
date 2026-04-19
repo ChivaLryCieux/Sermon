@@ -38,11 +38,16 @@ public partial class MainWindow : Window
     private ToggleButton _editModeToggle = null!;
     private ToggleButton _previewModeToggle = null!;
     private ToggleButton _splitModeToggle = null!;
+    private ToggleButton _memoryPanelToggle = null!;
     private TreeView _fileTreeView = null!;
+    private Grid _mainContentGrid = null!;
+    private GridSplitter _memoryPanelSplitter = null!;
+    private Border _memoryPanelBorder = null!;
     private TabControl _editorTabControl = null!;
     private TextBlock _wordCountTextBlock = null!;
     private TextBlock _cursorPositionTextBlock = null!;
     private TextBlock _statusTextBlock = null!;
+    private bool _isMemoryPanelVisible = true;
 
     public enum ViewMode
     {
@@ -57,6 +62,7 @@ public partial class MainWindow : Window
         BindNamedControls();
         InitializeEditor();
         InitializeMemorySystem();
+        SetMemoryPanelVisible(false);
         SetupAutoSave();
         SetupPreviewRefresh();
         SetupKeyBindings();
@@ -70,7 +76,11 @@ public partial class MainWindow : Window
         _editModeToggle = RequiredControl<ToggleButton>("EditModeToggle");
         _previewModeToggle = RequiredControl<ToggleButton>("PreviewModeToggle");
         _splitModeToggle = RequiredControl<ToggleButton>("SplitModeToggle");
+        _memoryPanelToggle = RequiredControl<ToggleButton>("MemoryPanelToggle");
         _fileTreeView = RequiredControl<TreeView>("FileTreeView");
+        _mainContentGrid = RequiredControl<Grid>("MainContentGrid");
+        _memoryPanelSplitter = RequiredControl<GridSplitter>("MemoryPanelSplitter");
+        _memoryPanelBorder = RequiredControl<Border>("MemoryPanelBorder");
         _editorTabControl = RequiredControl<TabControl>("EditorTabControl");
         _wordCountTextBlock = RequiredControl<TextBlock>("WordCountTextBlock");
         _cursorPositionTextBlock = RequiredControl<TextBlock>("CursorPositionTextBlock");
@@ -182,11 +192,12 @@ public partial class MainWindow : Window
         var storageProvider = StorageProvider;
         var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "选择Markdown文件",
+            Title = "选择文本文档",
             AllowMultiple = false,
             FileTypeFilter = new[]
             {
                 new FilePickerFileType("Markdown文件") { Patterns = new[] { "*.md", "*.markdown" } },
+                new FilePickerFileType("文本文件") { Patterns = new[] { "*.txt" } },
                 FilePickerFileTypes.All
             }
         });
@@ -242,12 +253,13 @@ public partial class MainWindow : Window
 
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "保存Markdown文件",
+            Title = "保存文本文档",
             SuggestedFileName = GetTabFileName(selectedTab),
-            DefaultExtension = "md",
+            DefaultExtension = GetDefaultExtension(selectedTab),
             FileTypeChoices = new[]
             {
                 new FilePickerFileType("Markdown文件") { Patterns = new[] { "*.md" } },
+                new FilePickerFileType("文本文件") { Patterns = new[] { "*.txt" } },
                 FilePickerFileTypes.All
             }
         });
@@ -345,6 +357,7 @@ public partial class MainWindow : Window
 
     private void InsertMarkdownFormat(string prefix, string suffix, string placeholder)
     {
+        EnsureEditableModeForCurrentTab();
         var textEditor = GetCurrentTextEditor();
         if (textEditor == null)
         {
@@ -367,6 +380,7 @@ public partial class MainWindow : Window
 
     private void InsertAtLineStart(string prefix)
     {
+        EnsureEditableModeForCurrentTab();
         var textEditor = GetCurrentTextEditor();
         if (textEditor == null)
         {
@@ -379,6 +393,7 @@ public partial class MainWindow : Window
 
     private void InsertText(string text)
     {
+        EnsureEditableModeForCurrentTab();
         var textEditor = GetCurrentTextEditor();
         if (textEditor == null)
         {
@@ -443,6 +458,16 @@ public partial class MainWindow : Window
         SetViewMode(ViewMode.Split);
     }
 
+    private void MemoryPanelToggle_Click(object? sender, RoutedEventArgs e)
+    {
+        SetMemoryPanelVisible(_memoryPanelToggle.IsChecked == true);
+    }
+
+    private void ToggleMemoryPanelMenuItem_Click(object? sender, RoutedEventArgs e)
+    {
+        SetMemoryPanelVisible(!_isMemoryPanelVisible);
+    }
+
     private void SetViewMode(ViewMode mode)
     {
         if (_editorTabControl.SelectedItem is TabItem selectedTab)
@@ -450,6 +475,10 @@ public partial class MainWindow : Window
             _tabViewModes[selectedTab] = mode;
             UpdateTabView(selectedTab, mode);
             UpdateViewModeButtons(mode);
+            if (mode is ViewMode.Edit or ViewMode.Split)
+            {
+                GetTextEditorFromTab(selectedTab)?.Focus();
+            }
         }
     }
 
@@ -460,22 +489,35 @@ public partial class MainWindow : Window
         _splitModeToggle.IsChecked = mode == ViewMode.Split;
     }
 
+    private void SetMemoryPanelVisible(bool visible)
+    {
+        _isMemoryPanelVisible = visible;
+        _memoryPanelBorder.IsVisible = visible;
+        _memoryPanelSplitter.IsVisible = visible;
+        _memoryPanelToggle.IsChecked = visible;
+
+        if (_mainContentGrid.ColumnDefinitions.Count < 5)
+        {
+            return;
+        }
+
+        _mainContentGrid.ColumnDefinitions[3].Width = visible
+            ? new GridLength(5)
+            : new GridLength(0);
+        _mainContentGrid.ColumnDefinitions[4].Width = visible
+            ? new GridLength(340)
+            : new GridLength(0);
+        _mainContentGrid.ColumnDefinitions[4].MinWidth = visible ? 280 : 0;
+    }
+
     private void FindMenuItem_Click(object? sender, RoutedEventArgs e)
     {
-        var textEditor = GetCurrentTextEditor();
-        if (textEditor != null)
-        {
-            SearchPanel.Install(textEditor);
-        }
+        OpenSearchPanelForCurrentEditor();
     }
 
     private void ReplaceMenuItem_Click(object? sender, RoutedEventArgs e)
     {
-        var textEditor = GetCurrentTextEditor();
-        if (textEditor != null)
-        {
-            SearchPanel.Install(textEditor);
-        }
+        OpenSearchPanelForCurrentEditor();
     }
 
     private async void LightThemeMenuItem_Click(object? sender, RoutedEventArgs e)
@@ -501,26 +543,8 @@ public partial class MainWindow : Window
     private TextEditor? GetCurrentTextEditor()
     {
         return _editorTabControl.SelectedItem is TabItem selectedTab
-            ? GetActiveTextEditorFromTab(selectedTab)
+            ? GetTextEditorFromTab(selectedTab)
             : null;
-    }
-
-    private static TextEditor? GetActiveTextEditorFromTab(TabItem tab)
-    {
-        if (tab.Content is Grid containerGrid && containerGrid.Children.Count >= 3)
-        {
-            if (containerGrid.Children[2] is Grid splitGrid &&
-                splitGrid.IsVisible &&
-                splitGrid.Children.Count > 0 &&
-                splitGrid.Children[0] is TextEditor splitTextEditor)
-            {
-                return splitTextEditor;
-            }
-
-            return containerGrid.Children.OfType<TextEditor>().FirstOrDefault();
-        }
-
-        return null;
     }
 
     private static TextEditor? GetTextEditorFromTab(TabItem tab)
@@ -538,19 +562,7 @@ public partial class MainWindow : Window
         textEditor.Document.Changed += Document_Changed;
         textEditor.TextArea.Caret.PositionChanged += (_, _) => UpdateCursorPosition(textEditor);
 
-        var preview = CreatePreview(content);
-
-        var splitGrid = new Grid
-        {
-            IsVisible = false,
-            ColumnDefinitions = new ColumnDefinitions("*,5,*")
-        };
-
-        var textEditorClone = CreateEditor(document);
-        textEditorClone.TextChanged += Editor_TextChanged;
-        textEditorClone.TextArea.Caret.PositionChanged += (_, _) => UpdateCursorPosition(textEditorClone);
-
-        var splitPreview = CreatePreview(content);
+        var preview = CreatePreview(content, filePath);
         var splitter = new GridSplitter
         {
             Width = 5,
@@ -558,17 +570,17 @@ public partial class MainWindow : Window
             Background = Brushes.LightGray
         };
 
-        Grid.SetColumn(textEditorClone, 0);
-        Grid.SetColumn(splitter, 1);
-        Grid.SetColumn(splitPreview, 2);
-        splitGrid.Children.Add(textEditorClone);
-        splitGrid.Children.Add(splitter);
-        splitGrid.Children.Add(splitPreview);
+        var containerGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,0,0")
+        };
 
-        var containerGrid = new Grid();
+        Grid.SetColumn(textEditor, 0);
+        Grid.SetColumn(splitter, 1);
+        Grid.SetColumn(preview, 2);
         containerGrid.Children.Add(textEditor);
+        containerGrid.Children.Add(splitter);
         containerGrid.Children.Add(preview);
-        containerGrid.Children.Add(splitGrid);
 
         var header = CreateTabHeader(title);
         var newTab = new TabItem
@@ -616,7 +628,7 @@ public partial class MainWindow : Window
         };
     }
 
-    private static ScrollViewer CreatePreview(string markdown)
+    private static ScrollViewer CreatePreview(string content, string? filePath)
     {
         return new ScrollViewer
         {
@@ -624,7 +636,9 @@ public partial class MainWindow : Window
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             Background = Brushes.White,
-            Content = BuildPreviewContent(markdown)
+            Content = IsPlainTextPath(filePath)
+                ? BuildPlainTextContent(content)
+                : BuildPreviewContent(content)
         };
     }
 
@@ -740,50 +754,77 @@ public partial class MainWindow : Window
         return result;
     }
 
+    private static StackPanel BuildPlainTextContent(string text)
+    {
+        var panel = new StackPanel
+        {
+            Margin = new Thickness(40, 32),
+            Spacing = 4
+        };
+
+        foreach (var line in (text ?? string.Empty).Replace("\r\n", "\n").Split('\n'))
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = line.Length == 0 ? " " : line,
+                FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
+                FontSize = 14,
+                LineHeight = 21,
+                TextWrapping = TextWrapping.Wrap
+            });
+        }
+
+        if (panel.Children.Count == 0)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = "预览将在这里显示",
+                Foreground = new SolidColorBrush(Color.FromRgb(102, 102, 102))
+            });
+        }
+
+        return panel;
+    }
+
+    private static bool IsPlainTextPath(string? filePath)
+    {
+        return Path.GetExtension(filePath ?? string.Empty)
+            .Equals(".txt", StringComparison.OrdinalIgnoreCase);
+    }
+
     private void UpdateTabView(TabItem tab, ViewMode mode)
     {
-        if (tab.Content is not Grid containerGrid || containerGrid.Children.Count < 3)
+        if (!TryGetTabLayout(tab, out var containerGrid, out var textEditor, out var splitter, out var preview))
         {
             return;
         }
 
-        var textEditor = containerGrid.Children[0] as TextEditor;
-        var preview = containerGrid.Children[1] as ScrollViewer;
-        var splitGrid = containerGrid.Children[2] as Grid;
-
-        if (textEditor != null)
-        {
-            textEditor.IsVisible = false;
-        }
-        if (preview != null)
-        {
-            preview.IsVisible = false;
-        }
-        if (splitGrid != null)
-        {
-            splitGrid.IsVisible = false;
-        }
+        textEditor.IsVisible = false;
+        splitter.IsVisible = false;
+        preview.IsVisible = false;
 
         switch (mode)
         {
             case ViewMode.Edit:
-                if (textEditor != null)
-                {
-                    textEditor.IsVisible = true;
-                }
+                textEditor.IsVisible = true;
+                containerGrid.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+                containerGrid.ColumnDefinitions[1].Width = new GridLength(0);
+                containerGrid.ColumnDefinitions[2].Width = new GridLength(0);
                 break;
             case ViewMode.Preview:
-                if (preview != null)
-                {
-                    preview.IsVisible = true;
-                }
+                preview.IsVisible = true;
+                containerGrid.ColumnDefinitions[0].Width = new GridLength(0);
+                containerGrid.ColumnDefinitions[1].Width = new GridLength(0);
+                containerGrid.ColumnDefinitions[2].Width = new GridLength(1, GridUnitType.Star);
                 RefreshPreview(tab);
                 break;
             case ViewMode.Split:
-                if (splitGrid != null)
-                {
-                    splitGrid.IsVisible = true;
-                }
+                textEditor.IsVisible = true;
+                splitter.IsVisible = true;
+                preview.IsVisible = true;
+                containerGrid.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
+                containerGrid.ColumnDefinitions[1].Width = new GridLength(5);
+                containerGrid.ColumnDefinitions[2].Width = new GridLength(1, GridUnitType.Star);
                 RefreshPreview(tab);
                 break;
         }
@@ -808,30 +849,51 @@ public partial class MainWindow : Window
 
     private static void RefreshPreview(TabItem tab)
     {
-        if (tab.Content is not Grid containerGrid || containerGrid.Children.Count < 3)
+        if (!TryGetTabLayout(tab, out _, out var textEditor, out _, out var preview))
         {
             return;
         }
 
-        var textEditor = containerGrid.Children[0] as TextEditor;
-        if (textEditor == null)
-        {
-            return;
-        }
-
-        var content = BuildPreviewContent(textEditor.Text);
-        if (containerGrid.Children[1] is ScrollViewer preview && preview.IsVisible)
+        var filePath = tab.Tag as string;
+        var content = IsPlainTextPath(filePath)
+            ? BuildPlainTextContent(textEditor.Text)
+            : BuildPreviewContent(textEditor.Text);
+        if (preview.IsVisible)
         {
             preview.Content = content;
         }
+    }
 
-        if (containerGrid.Children[2] is Grid splitGrid &&
-            splitGrid.IsVisible &&
-            splitGrid.Children.Count >= 3 &&
-            splitGrid.Children[2] is ScrollViewer splitPreview)
+    private static bool TryGetTabLayout(
+        TabItem tab,
+        out Grid containerGrid,
+        out TextEditor textEditor,
+        out GridSplitter splitter,
+        out ScrollViewer preview)
+    {
+        containerGrid = null!;
+        textEditor = null!;
+        splitter = null!;
+        preview = null!;
+
+        if (tab.Content is not Grid grid)
         {
-            splitPreview.Content = BuildPreviewContent(textEditor.Text);
+            return false;
         }
+
+        var editor = grid.Children.OfType<TextEditor>().FirstOrDefault();
+        var split = grid.Children.OfType<GridSplitter>().FirstOrDefault();
+        var pv = grid.Children.OfType<ScrollViewer>().FirstOrDefault();
+        if (editor == null || split == null || pv == null)
+        {
+            return false;
+        }
+
+        containerGrid = grid;
+        textEditor = editor;
+        splitter = split;
+        preview = pv;
+        return true;
     }
 
     private StackPanel CreateTabHeader(string fileName)
@@ -963,7 +1025,7 @@ public partial class MainWindow : Window
                 LoadDirectory(dir, node);
             }
 
-            foreach (var file in Directory.GetFiles(path).Where(IsMarkdownFile).OrderBy(Path.GetFileName))
+            foreach (var file in Directory.GetFiles(path).Where(IsSupportedTextFile).OrderBy(Path.GetFileName))
             {
                 parentNode.Items.Add(new TreeViewItem { Header = Path.GetFileName(file), Tag = file });
             }
@@ -976,11 +1038,19 @@ public partial class MainWindow : Window
         }
     }
 
-    private static bool IsMarkdownFile(string filePath)
+    private static bool IsSupportedTextFile(string filePath)
     {
         var extension = Path.GetExtension(filePath);
         return extension.Equals(".md", StringComparison.OrdinalIgnoreCase) ||
-               extension.Equals(".markdown", StringComparison.OrdinalIgnoreCase);
+               extension.Equals(".markdown", StringComparison.OrdinalIgnoreCase) ||
+               extension.Equals(".txt", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetDefaultExtension(TabItem tab)
+    {
+        var filePath = tab.Tag as string;
+        var extension = Path.GetExtension(filePath ?? string.Empty);
+        return extension.Equals(".txt", StringComparison.OrdinalIgnoreCase) ? "txt" : "md";
     }
 
     private void FileTreeView_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -1030,12 +1100,32 @@ public partial class MainWindow : Window
             UpdateCursorPosition(textEditor);
         }
 
-        if (_tabViewModes.TryGetValue(selectedTab, out var viewMode))
+        if (!_tabViewModes.TryGetValue(selectedTab, out var viewMode))
         {
-            UpdateViewModeButtons(viewMode);
+            viewMode = ViewMode.Edit;
+            _tabViewModes[selectedTab] = viewMode;
+        }
+        UpdateTabView(selectedTab, viewMode);
+        UpdateViewModeButtons(viewMode);
+
+        if (viewMode is ViewMode.Edit or ViewMode.Split)
+        {
+            GetTextEditorFromTab(selectedTab)?.Focus();
+        }
+        SyncMemoryPanelWithCurrentTab();
+    }
+
+    private void EnsureEditableModeForCurrentTab()
+    {
+        if (_editorTabControl.SelectedItem is not TabItem selectedTab)
+        {
+            return;
         }
 
-        SyncMemoryPanelWithCurrentTab();
+        if (_tabViewModes.TryGetValue(selectedTab, out var mode) && mode == ViewMode.Preview)
+        {
+            SetViewMode(ViewMode.Edit);
+        }
     }
 
     private void Editor_TextChanged(object? sender, EventArgs e)
@@ -1048,7 +1138,7 @@ public partial class MainWindow : Window
         UpdateWordCount(textEditor.Text);
         UpdateCursorPosition(textEditor);
 
-        if (FindTabForEditor(textEditor) is { } tab &&
+        if (FindTabForDocument(textEditor.Document) is { } tab &&
             _tabViewModes.TryGetValue(tab, out var viewMode) &&
             viewMode != ViewMode.Edit)
         {
@@ -1065,28 +1155,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private TabItem? FindTabForEditor(TextEditor editor)
-    {
-        return _editorTabControl.Items
-            .OfType<TabItem>()
-            .FirstOrDefault(tab => TabContainsEditor(tab, editor));
-    }
-
-    private static bool TabContainsEditor(TabItem tab, TextEditor editor)
-    {
-        if (tab.Content is not Grid containerGrid)
-        {
-            return false;
-        }
-
-        if (containerGrid.Children.Contains(editor))
-        {
-            return true;
-        }
-
-        return containerGrid.Children.OfType<Grid>().Any(grid => grid.Children.Contains(editor));
-    }
-
     private TabItem? FindTabForDocument(TextDocument? document)
     {
         if (document == null)
@@ -1097,6 +1165,15 @@ public partial class MainWindow : Window
         return _editorTabControl.Items
             .OfType<TabItem>()
             .FirstOrDefault(tab => GetTextEditorFromTab(tab)?.Document == document);
+    }
+
+    private void OpenSearchPanelForCurrentEditor()
+    {
+        var textEditor = GetCurrentTextEditor();
+        if (textEditor != null)
+        {
+            SearchPanel.Install(textEditor);
+        }
     }
 
     private void UpdateWordCount(string text)
