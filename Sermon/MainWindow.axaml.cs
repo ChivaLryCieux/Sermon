@@ -502,10 +502,10 @@ public partial class MainWindow : Window
         }
 
         _mainContentGrid.ColumnDefinitions[3].Width = visible
-            ? new GridLength(5)
+            ? new GridLength(1)
             : new GridLength(0);
         _mainContentGrid.ColumnDefinitions[4].Width = visible
-            ? new GridLength(340)
+            ? new GridLength(320)
             : new GridLength(0);
         _mainContentGrid.ColumnDefinitions[4].MinWidth = visible ? 280 : 0;
     }
@@ -565,9 +565,9 @@ public partial class MainWindow : Window
         var preview = CreatePreview(content, filePath);
         var splitter = new GridSplitter
         {
-            Width = 5,
+            Width = 1,
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            Background = Brushes.LightGray
+            Background = new SolidColorBrush(Color.FromRgb(220, 220, 214))
         };
 
         var containerGrid = new Grid
@@ -622,9 +622,9 @@ public partial class MainWindow : Window
             FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
             FontSize = 14,
             Padding = new Thickness(18),
-            Background = Brushes.White,
+            Background = new SolidColorBrush(Color.FromRgb(255, 255, 255)),
             Foreground = new SolidColorBrush(Color.FromRgb(17, 17, 17)),
-            LineNumbersForeground = new SolidColorBrush(Color.FromRgb(128, 128, 128))
+            LineNumbersForeground = new SolidColorBrush(Color.FromRgb(106, 106, 100))
         };
     }
 
@@ -635,7 +635,7 @@ public partial class MainWindow : Window
             IsVisible = false,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Background = Brushes.White,
+            Background = new SolidColorBrush(Color.FromRgb(255, 255, 255)),
             Content = IsPlainTextPath(filePath)
                 ? BuildPlainTextContent(content)
                 : BuildPreviewContent(content)
@@ -823,7 +823,7 @@ public partial class MainWindow : Window
                 splitter.IsVisible = true;
                 preview.IsVisible = true;
                 containerGrid.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
-                containerGrid.ColumnDefinitions[1].Width = new GridLength(5);
+                containerGrid.ColumnDefinitions[1].Width = new GridLength(1);
                 containerGrid.ColumnDefinitions[2].Width = new GridLength(1, GridUnitType.Star);
                 RefreshPreview(tab);
                 break;
@@ -915,8 +915,12 @@ public partial class MainWindow : Window
             Content = "x",
             Width = 24,
             Height = 24,
+            MinWidth = 24,
+            MinHeight = 24,
             Padding = new Thickness(0),
-            FontSize = 12
+            FontSize = 12,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center
         };
         closeButton.Click += CloseTab_Click;
 

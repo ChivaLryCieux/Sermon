@@ -1,49 +1,106 @@
 <Window x:Class="Sermon.MainWindow"
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Sermon - Markdown编辑器"
+        Title="Sermon"
         Width="1400"
         Height="900"
         MinWidth="960"
         MinHeight="640"
         WindowStartupLocation="CenterScreen"
         FontFamily="Inter, Segoe UI, Noto Sans CJK SC"
-        Background="#F5F5F5">
+        Background="#F7F7F4">
 
   <Window.Resources>
-    <SolidColorBrush x:Key="SwissBackgroundBrush" Color="#F5F5F5" />
+    <SolidColorBrush x:Key="SwissBackgroundBrush" Color="#F7F7F4" />
     <SolidColorBrush x:Key="SwissSurfaceBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SwissPanelBrush" Color="#FAFAF8" />
     <SolidColorBrush x:Key="SwissTextBrush" Color="#111111" />
-    <SolidColorBrush x:Key="SwissMutedTextBrush" Color="#666666" />
-    <SolidColorBrush x:Key="SwissLineBrush" Color="#D8D8D8" />
-    <SolidColorBrush x:Key="SwissAccentBrush" Color="#E0001B" />
-    <SolidColorBrush x:Key="SwissHoverBrush" Color="#ECECEC" />
+    <SolidColorBrush x:Key="SwissMutedTextBrush" Color="#6A6A64" />
+    <SolidColorBrush x:Key="SwissLineBrush" Color="#DCDCD6" />
+    <SolidColorBrush x:Key="SwissAccentBrush" Color="#E30613" />
+    <SolidColorBrush x:Key="SwissHoverBrush" Color="#EEEEEA" />
   </Window.Resources>
 
   <Window.Styles>
+    <Style Selector="Menu">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Foreground" Value="{StaticResource SwissTextBrush}" />
+    </Style>
     <Style Selector="Button">
-      <Setter Property="Background" Value="{StaticResource SwissSurfaceBrush}" />
+      <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderBrush" Value="{StaticResource SwissLineBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Foreground" Value="{StaticResource SwissTextBrush}" />
-      <Setter Property="Padding" Value="10,5" />
-      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="FontSize" Value="13" />
     </Style>
     <Style Selector="Button:pointerover">
       <Setter Property="Background" Value="{StaticResource SwissHoverBrush}" />
     </Style>
+    <Style Selector="Button.icon">
+      <Setter Property="Width" Value="34" />
+      <Setter Property="MinWidth" Value="34" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{StaticResource SwissTextBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SwissTextBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.primary:pointerover">
+      <Setter Property="Background" Value="{StaticResource SwissAccentBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SwissAccentBrush}" />
+    </Style>
     <Style Selector="ToggleButton">
-      <Setter Property="Background" Value="{StaticResource SwissSurfaceBrush}" />
+      <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderBrush" Value="{StaticResource SwissLineBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Foreground" Value="{StaticResource SwissTextBrush}" />
-      <Setter Property="Padding" Value="10,5" />
-      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="FontSize" Value="13" />
+    </Style>
+    <Style Selector="ToggleButton:pointerover">
+      <Setter Property="Background" Value="{StaticResource SwissHoverBrush}" />
     </Style>
     <Style Selector="ToggleButton:checked">
-      <Setter Property="Background" Value="{StaticResource SwissAccentBrush}" />
+      <Setter Property="Background" Value="{StaticResource SwissTextBrush}" />
       <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="{StaticResource SwissAccentBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SwissTextBrush}" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="White" />
+      <Setter Property="BorderBrush" Value="{StaticResource SwissLineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="Padding" Value="10,7" />
+      <Setter Property="FontSize" Value="13" />
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="Background" Value="White" />
+      <Setter Property="BorderBrush" Value="{StaticResource SwissLineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="FontSize" Value="13" />
+    </Style>
+    <Style Selector="TreeView, ListBox">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="FontSize" Value="13" />
+    </Style>
+    <Style Selector="TabControl">
+      <Setter Property="Background" Value="White" />
+    </Style>
+    <Style Selector="TabItem">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Padding" Value="10,7" />
     </Style>
   </Window.Styles>
 
@@ -69,6 +126,11 @@
       <MenuItem Header="_编辑(E)">
         <MenuItem Header="_查找" Click="FindMenuItem_Click" HotKey="Ctrl+F" />
         <MenuItem Header="_替换" Click="ReplaceMenuItem_Click" HotKey="Ctrl+H" />
+        <Separator />
+        <MenuItem Header="_插入链接" Click="LinkButton_Click" />
+        <MenuItem Header="_插入图片" Click="ImageButton_Click" />
+        <MenuItem Header="_插入代码块" Click="CodeBlockButton_Click" />
+        <MenuItem Header="_插入表格" Click="TableButton_Click" />
       </MenuItem>
       <MenuItem Header="_视图(V)">
         <MenuItem Header="_编辑模式" Click="EditModeMenuItem_Click" />
@@ -92,23 +154,58 @@
             Background="{StaticResource SwissSurfaceBrush}"
             BorderBrush="{StaticResource SwissLineBrush}"
             BorderThickness="0,1,0,1"
-            Padding="12,6">
-      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-        <StackPanel Orientation="Horizontal" Spacing="4">
-          <Button Content="新建" Click="NewFileMenuItem_Click" />
-          <Button Content="打开" Click="OpenFileMenuItem_Click" />
-          <Button Content="保存" Click="SaveMenuItem_Click" />
-          <Border Width="1" Margin="8,2" Background="{StaticResource SwissLineBrush}" />
-          <Button Content="B" FontWeight="Bold" Click="BoldButton_Click" />
-          <Button Content="I" FontStyle="Italic" Click="ItalicButton_Click" />
-          <Button Click="StrikethroughButton_Click">
+            Padding="18,10">
+      <Grid ColumnDefinitions="Auto,18,Auto,18,*,Auto" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Border Width="5" Height="24" Background="{StaticResource SwissAccentBrush}" />
+          <StackPanel Spacing="0">
+            <TextBlock Text="Sermon"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       LetterSpacing="0"
+                       Foreground="{StaticResource SwissTextBrush}" />
+            <TextBlock Text="Markdown Editor"
+                       Margin="1,-2,0,0"
+                       FontSize="10"
+                       Foreground="{StaticResource SwissMutedTextBrush}" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
+          <Button Classes="icon"
+                  Content="+"
+                  Click="NewFileMenuItem_Click"
+                  ToolTip.Tip="新建 Ctrl+N" />
+          <Button Classes="icon"
+                  Content="O"
+                  Click="OpenFileMenuItem_Click"
+                  ToolTip.Tip="打开 Ctrl+O" />
+          <Button Classes="icon primary"
+                  Content="S"
+                  Click="SaveMenuItem_Click"
+                  ToolTip.Tip="保存 Ctrl+S" />
+        </StackPanel>
+
+        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <Button Classes="icon"
+                  Content="B"
+                  FontWeight="Bold"
+                  Click="BoldButton_Click"
+                  ToolTip.Tip="加粗 Ctrl+B" />
+          <Button Classes="icon"
+                  Content="I"
+                  FontStyle="Italic"
+                  Click="ItalicButton_Click"
+                  ToolTip.Tip="斜体 Ctrl+I" />
+          <Button Classes="icon"
+                  Click="StrikethroughButton_Click"
+                  ToolTip.Tip="删除线">
             <TextBlock Text="S" TextDecorations="Strikethrough" />
           </Button>
           <ComboBox x:Name="HeadingComboBox"
-                    Width="120"
-                    Margin="8,0"
+                    Width="104"
                     SelectionChanged="HeadingComboBox_SelectionChanged">
-            <ComboBoxItem Content="普通文本" Tag="" />
+            <ComboBoxItem Content="正文" Tag="" />
             <ComboBoxItem Content="标题 1" Tag="# " />
             <ComboBoxItem Content="标题 2" Tag="## " />
             <ComboBoxItem Content="标题 3" Tag="### " />
@@ -116,35 +213,48 @@
             <ComboBoxItem Content="标题 5" Tag="##### " />
             <ComboBoxItem Content="标题 6" Tag="###### " />
           </ComboBox>
-          <Button Content="列表" Click="BulletListButton_Click" />
-          <Button Content="编号" Click="NumberedListButton_Click" />
-          <Button Content="链接" Click="LinkButton_Click" />
-          <Button Content="图片" Click="ImageButton_Click" />
-          <Button Content="代码" Click="CodeBlockButton_Click" />
-          <Button Content="表格" Click="TableButton_Click" />
-          <Border Width="1" Margin="8,2" Background="{StaticResource SwissLineBrush}" />
+          <Button Classes="icon"
+                  Content="•"
+                  Click="BulletListButton_Click"
+                  ToolTip.Tip="项目列表" />
+          <Button Classes="icon"
+                  Content="1."
+                  Click="NumberedListButton_Click"
+                  ToolTip.Tip="编号列表" />
+          <Button Classes="icon"
+                  Content="[]"
+                  Click="LinkButton_Click"
+                  ToolTip.Tip="链接" />
+          <Button Classes="icon"
+                  Content="{}"
+                  Click="CodeBlockButton_Click"
+                  ToolTip.Tip="代码块" />
+        </StackPanel>
+
+        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right">
           <ToggleButton x:Name="EditModeToggle" Content="编辑" IsChecked="True" Click="EditModeToggle_Click" />
           <ToggleButton x:Name="PreviewModeToggle" Content="预览" Click="PreviewModeToggle_Click" />
           <ToggleButton x:Name="SplitModeToggle" Content="分屏" Click="SplitModeToggle_Click" />
           <ToggleButton x:Name="MemoryPanelToggle"
-                        Content="记忆面板"
+                        Content="记忆"
                         IsChecked="False"
+                        Margin="8,0,0,0"
                         Click="MemoryPanelToggle_Click" />
         </StackPanel>
-      </ScrollViewer>
+      </Grid>
     </Border>
 
-    <Grid x:Name="MainContentGrid" Grid.Row="2" Margin="18">
+    <Grid x:Name="MainContentGrid" Grid.Row="2" Margin="18,18,18,14">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="260" MinWidth="180" />
-        <ColumnDefinition Width="5" />
+        <ColumnDefinition Width="244" MinWidth="180" />
+        <ColumnDefinition Width="1" />
         <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="5" />
-        <ColumnDefinition Width="340" MinWidth="280" />
+        <ColumnDefinition Width="1" />
+        <ColumnDefinition Width="320" MinWidth="280" />
       </Grid.ColumnDefinitions>
 
       <Border Grid.Column="0"
-              Background="{StaticResource SwissSurfaceBrush}"
+              Background="{StaticResource SwissPanelBrush}"
               BorderBrush="{StaticResource SwissLineBrush}"
               BorderThickness="1">
         <Grid>
@@ -154,14 +264,12 @@
             <RowDefinition Height="*" />
           </Grid.RowDefinitions>
 
-          <DockPanel Grid.Row="0" Margin="14,12">
-            <Border Width="4"
-                    Height="18"
-                    Background="{StaticResource SwissAccentBrush}"
-                    Margin="0,0,10,0" />
+          <DockPanel Grid.Row="0" Margin="14,14,14,12">
             <TextBlock Text="文件资源管理器"
-                       FontSize="13"
-                       FontWeight="SemiBold"
+                       FontSize="12"
+                       FontWeight="Bold"
+                       LetterSpacing="0"
+                       Foreground="{StaticResource SwissMutedTextBrush}"
                        VerticalAlignment="Center" />
           </DockPanel>
           <Border Grid.Row="1" Background="{StaticResource SwissLineBrush}" />
@@ -173,13 +281,13 @@
       </Border>
 
       <GridSplitter Grid.Column="1"
-                    Width="5"
+                    Width="1"
                     HorizontalAlignment="Stretch"
                     Background="{StaticResource SwissLineBrush}" />
 
       <TabControl x:Name="EditorTabControl"
                   Grid.Column="2"
-                  Margin="18,0,0,0"
+                  Margin="16,0,0,0"
                   SelectionChanged="EditorTabControl_SelectionChanged"
                   Background="{StaticResource SwissSurfaceBrush}"
                   BorderBrush="{StaticResource SwissLineBrush}"
@@ -187,25 +295,23 @@
 
       <GridSplitter x:Name="MemoryPanelSplitter"
                     Grid.Column="3"
-                    Width="5"
+                    Width="1"
                     HorizontalAlignment="Stretch"
                     Background="{StaticResource SwissLineBrush}" />
 
       <Border x:Name="MemoryPanelBorder"
               Grid.Column="4"
-              Margin="18,0,0,0"
-              Background="{StaticResource SwissSurfaceBrush}"
+              Margin="16,0,0,0"
+              Background="{StaticResource SwissPanelBrush}"
               BorderBrush="{StaticResource SwissLineBrush}"
               BorderThickness="1">
         <Grid RowDefinitions="Auto,1,Auto,Auto,Auto,*">
-          <DockPanel Grid.Row="0" Margin="14,12">
-            <Border Width="4"
-                    Height="18"
-                    Background="{StaticResource SwissAccentBrush}"
-                    Margin="0,0,10,0" />
+          <DockPanel Grid.Row="0" Margin="14,14,14,12">
             <TextBlock Text="AI 记忆管理"
-                       FontSize="13"
-                       FontWeight="SemiBold"
+                       FontSize="12"
+                       FontWeight="Bold"
+                       LetterSpacing="0"
+                       Foreground="{StaticResource SwissMutedTextBrush}"
                        VerticalAlignment="Center" />
           </DockPanel>
           <Border Grid.Row="1" Background="{StaticResource SwissLineBrush}" />
@@ -224,10 +330,10 @@
                    Margin="14,0,14,8"
                    Watermark="输入当前任务意图（用于生成上下文包）" />
           <Grid Grid.Row="5" Margin="14,0,14,14" RowDefinitions="Auto,*">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Button Content="提取当前文档记忆" Click="ExtractMemoryButton_Click" />
-              <Button Content="生成上下文包" Click="GenerateContextPackButton_Click" />
-              <Button Content="删除选中" Click="DeleteSelectedMemoryButton_Click" />
+            <StackPanel Orientation="Horizontal" Spacing="0">
+              <Button Content="提取" Click="ExtractMemoryButton_Click" ToolTip.Tip="提取当前文档记忆" />
+              <Button Content="上下文" Click="GenerateContextPackButton_Click" ToolTip.Tip="生成上下文包" />
+              <Button Content="删除" Click="DeleteSelectedMemoryButton_Click" ToolTip.Tip="删除选中记忆" />
             </StackPanel>
             <ListBox x:Name="MemoryListBox"
                      Grid.Row="1"
@@ -241,11 +347,11 @@
             Background="{StaticResource SwissSurfaceBrush}"
             BorderBrush="{StaticResource SwissLineBrush}"
             BorderThickness="0,1,0,0"
-            Padding="12,6">
+            Padding="18,7">
       <Grid ColumnDefinitions="Auto,Auto,*">
-        <TextBlock x:Name="WordCountTextBlock" Text="字数: 0  字符: 0" />
-        <TextBlock x:Name="CursorPositionTextBlock" Grid.Column="1" Margin="24,0,0,0" Text="行: 1, 列: 1" />
-        <TextBlock x:Name="StatusTextBlock" Grid.Column="2" HorizontalAlignment="Right" Text="准备就绪" />
+        <TextBlock x:Name="WordCountTextBlock" FontSize="12" Foreground="{StaticResource SwissMutedTextBrush}" Text="字数: 0  字符: 0" />
+        <TextBlock x:Name="CursorPositionTextBlock" Grid.Column="1" Margin="24,0,0,0" FontSize="12" Foreground="{StaticResource SwissMutedTextBrush}" Text="行: 1, 列: 1" />
+        <TextBlock x:Name="StatusTextBlock" Grid.Column="2" HorizontalAlignment="Right" FontSize="12" Foreground="{StaticResource SwissMutedTextBrush}" Text="准备就绪" />
       </Grid>
     </Border>
   </Grid>
