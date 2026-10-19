@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -16,13 +17,16 @@ public partial class MainWindow
     private TextBox _memorySearchTextBox = null!;
     private TextBox _memoryIntentTextBox = null!;
     private ListBox _memoryListBox = null!;
+    private ListBox _backlinkListBox = null!;
     private TextBlock _memoryStatsTextBlock = null!;
+    private List<(string FilePath, string FileName)> _backlinks = new();
 
     private void InitializeMemorySystem()
     {
         _memorySearchTextBox = RequiredControl<TextBox>("MemorySearchTextBox");
         _memoryIntentTextBox = RequiredControl<TextBox>("MemoryIntentTextBox");
         _memoryListBox = RequiredControl<ListBox>("MemoryListBox");
+        _backlinkListBox = RequiredControl<ListBox>("BacklinkListBox");
         _memoryStatsTextBlock = RequiredControl<TextBlock>("MemoryStatsTextBlock");
         _ = LoadMemoryStoreAsync();
     }
@@ -156,12 +160,101 @@ public partial class MainWindow
     private void SyncMemoryPanelWithCurrentTab()
     {
         RefreshMemoryUi();
+        _ = RefreshBacklinksAsync();
     }
 
     private void RefreshMemoryUi()
     {
         RefreshMemoryList(_memorySearchTextBox.Text);
         UpdateMemoryStats();
+    }
+
+    private async Task RefreshBacklinksAsync()
+    {
+        var currentPath = GetCurrentSourcePath();
+        if (string.IsNullOrEmpty(_currentVaultPath)
+            || string.IsNullOrEmpty(currentPath)
+            || currentPath == "未保存文档"
+            || !File.Exists(currentPath))
+        {
+            _backlinks = new List<(string, string)>();
+            _backlinkListBox.ItemsSource = new List<string> { "（打开 Vault 内的文档后显示反链）" };
+            return;
+        }
+
+        var vault = _currentVaultPath;
+        var target = currentPath;
+        var links = await Task.Run(() => WikiLinkResolver.FindBacklinks(vault, target));
+        _backlinks = links;
+        _backlinkListBox.ItemsSource = links.Count == 0
+            ? new List<string> { "（暂无反向链接）" }
+            : links.Select(x => x.FileName).ToList();
+    }
+
+    private void BacklinkListBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_backlinkListBox.SelectedItem is not string name)
+        {
+            return;
+        }
+
+        var match = _backlinks.FirstOrDefault(x => x.FileName.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrEmpty(match.FilePath))
+        {
+            OpenFileInNewTab(match.FilePath);
+        }
+
+        _backlinkListBox.SelectedItem = null;
+    }
+
+    private async void FollowWikiLinkAtCaret()
+    {
+        var editor = GetCurrentTextEditor();
+        if (editor == null)
+        {
+            return;
+        }
+
+        var offset = Math.Clamp(editor.CaretOffset, 0, editor.Text.Length);
+        var link = WikiLinkResolver.Parse(editor.Text)
+            .FirstOrDefault(l => offset >= l.Offset && offset <= l.Offset + l.Length);
+        if (link == null)
+        {
+            _statusTextBlock.Text = "光标不在 [[双链]] 上";
+            return;
+        }
+
+        // 默认 Obsidian 行为：目标不存在则自动新建。
+        if (!string.IsNullOrEmpty(_currentVaultPath))
+        {
+            var resolved = WikiLinkResolver.ResolveToFile(_currentVaultPath, link.Target);
+            if (resolved != null)
+            {
+                OpenFileInNewTab(resolved);
+                return;
+            }
+
+            var newPath = WikiLinkResolver.DefaultNewFilePath(_currentVaultPath, link.Target);
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(newPath)!);
+                if (!File.Exists(newPath))
+                {
+                    await File.WriteAllTextAsync(newPath, $"# {link.Target}\n\n");
+                }
+
+                OpenFileInNewTab(newPath);
+                _statusTextBlock.Text = $"已新建并打开: {Path.GetFileName(newPath)}";
+            }
+            catch (Exception ex)
+            {
+                await ShowInfoDialogAsync("双链", $"无法创建目标文件: {ex.Message}");
+            }
+
+            return;
+        }
+
+        await ShowInfoDialogAsync("双链", "请先打开一个知识库（Vault）再使用双链跳转。");
     }
 
     private int MergeMemories(IReadOnlyList<MemoryEntry> incoming)

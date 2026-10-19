@@ -336,14 +336,20 @@
                    Grid.Row="4"
                    Margin="14,0,14,8"
                    Watermark="输入当前任务意图（用于生成上下文包）" />
-          <Grid Grid.Row="5" Margin="14,0,14,14" RowDefinitions="Auto,*">
+          <Grid Grid.Row="5" Margin="14,0,14,14" RowDefinitions="Auto,Auto,*">
             <StackPanel Orientation="Horizontal" Spacing="0">
               <Button Content="提取" Click="ExtractMemoryButton_Click" ToolTip.Tip="提取当前文档记忆" />
               <Button Content="上下文" Click="GenerateContextPackButton_Click" ToolTip.Tip="生成上下文包" />
               <Button Content="删除" Click="DeleteSelectedMemoryButton_Click" ToolTip.Tip="删除选中记忆" />
             </StackPanel>
+            <StackPanel Grid.Row="1" Margin="0,10,0,0" Orientation="Vertical" Spacing="6">
+              <TextBlock Text="反向链接" FontWeight="Bold" Foreground="{StaticResource SwissMutedTextBrush}" />
+              <ListBox x:Name="BacklinkListBox"
+                       MaxHeight="140"
+                       SelectionChanged="BacklinkListBox_SelectionChanged" />
+            </StackPanel>
             <ListBox x:Name="MemoryListBox"
-                     Grid.Row="1"
+                     Grid.Row="2"
                      Margin="0,10,0,0" />
           </Grid>
         </Grid>
