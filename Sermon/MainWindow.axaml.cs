@@ -36,6 +36,7 @@ public partial class MainWindow : Window
     private FileSystemWatcher? _vaultWatcher;
     private DispatcherTimer? _vaultRefreshDebounce;
     private readonly VaultManager _vaultManager = new();
+    private readonly ViewModels.VaultPanelViewModel _vaultPanel;
     private readonly AppSettings _appSettings = new();
     private string? _currentVaultPath;
     private ComboBox _vaultComboBox = null!;
@@ -64,6 +65,8 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        _vaultPanel = new ViewModels.VaultPanelViewModel(_vaultManager, new Services.VaultService());
+        _vaultPanel.VaultFilesChanged += ScheduleVaultRefresh;
         InitializeComponent();
         BindNamedControls();
         InitializeEditor();
@@ -1311,7 +1314,7 @@ public partial class MainWindow : Window
         _currentVaultPath = vaultPath;
         await _vaultManager.SetCurrentAsync(vaultPath);
         RefreshVaultComboBox();
-        StartVaultWatcher(vaultPath);
+        await _vaultPanel.OpenAsync(vaultPath);
         await LoadVaultTreeAsync(vaultPath);
         _statusTextBlock.Text = $"已打开知识库: {Path.GetFileName(vaultPath)}";
     }
@@ -1322,7 +1325,8 @@ public partial class MainWindow : Window
         var loading = new TreeViewItem { Header = "正在加载…" };
         _fileTreeView.Items.Add(loading);
 
-        var snapshot = await Task.Run(() => SnapshotVault(rootPath, maxFiles: 4000));
+        await _vaultPanel.ReloadFilesAsync();
+        var snapshot = _vaultPanel.Files.Select(x => (x.Name, x.FullPath)).ToList();
         var rootNode = new TreeViewItem
         {
             Header = Path.GetFileName(rootPath),
@@ -1343,35 +1347,6 @@ public partial class MainWindow : Window
         _fileTreeView.Items.Add(rootNode);
     }
 
-    private void StartVaultWatcher(string vaultPath)
-    {
-        _vaultWatcher?.Dispose();
-        try
-        {
-            _vaultWatcher = new FileSystemWatcher(vaultPath)
-            {
-                IncludeSubdirectories = true,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite,
-                Filter = "*.*",
-                EnableRaisingEvents = true
-            };
-            _vaultWatcher.Created += (_, _) => ScheduleVaultRefresh();
-            _vaultWatcher.Deleted += (_, _) => ScheduleVaultRefresh();
-            _vaultWatcher.Renamed += (_, _) => ScheduleVaultRefresh();
-            _vaultWatcher.Changed += (_, e) =>
-            {
-                if (e.FullPath.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
-                {
-                    ScheduleVaultRefresh();
-                }
-            };
-        }
-        catch
-        {
-            _vaultWatcher = null;
-        }
-    }
-
     private void ScheduleVaultRefresh()
     {
         Dispatcher.UIThread.Post(() =>
@@ -1379,57 +1354,6 @@ public partial class MainWindow : Window
             _vaultRefreshDebounce?.Stop();
             _vaultRefreshDebounce?.Start();
         });
-    }
-
-    private static List<(string Name, string FullPath)> SnapshotVault(string rootPath, int maxFiles)
-    {
-        var result = new List<(string Name, string FullPath)>();
-        try
-        {
-            var stack = new Stack<string>();
-            stack.Push(rootPath);
-            while (stack.Count > 0 && result.Count < maxFiles)
-            {
-                var dir = stack.Pop();
-                string[] subDirs = Array.Empty<string>();
-                string[] files = Array.Empty<string>();
-                try
-                {
-                    subDirs = Directory.GetDirectories(dir);
-                    files = Directory.GetFiles(dir).Where(IsSupportedTextFile).ToArray();
-                }
-                catch
-                {
-                    continue;
-                }
-
-                foreach (var file in files.OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
-                {
-                    if (result.Count >= maxFiles)
-                    {
-                        break;
-                    }
-                    result.Add((Path.GetFileName(file), file));
-                }
-
-                foreach (var sub in subDirs.OrderByDescending(d => d, StringComparer.OrdinalIgnoreCase))
-                {
-                    var name = Path.GetFileName(sub);
-                    if (name.StartsWith(".", StringComparison.Ordinal) ||
-                        name.Equals("node_modules", StringComparison.OrdinalIgnoreCase) ||
-                        name.Equals(".git", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-                    stack.Push(sub);
-                }
-            }
-        }
-        catch
-        {
-        }
-
-        return result.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     private void RefreshVaultComboBox()
