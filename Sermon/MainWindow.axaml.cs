@@ -33,6 +33,11 @@ public partial class MainWindow : Window
     private DispatcherTimer? _previewRefreshTimer;
     private TabItem? _pendingPreviewTab;
     private bool _isClosingConfirmed;
+    private FileSystemWatcher? _vaultWatcher;
+    private DispatcherTimer? _vaultRefreshDebounce;
+    private readonly VaultManager _vaultManager = new();
+    private string? _currentVaultPath;
+    private ComboBox _vaultComboBox = null!;
     private bool _suppressHeadingSelection;
     private ComboBox _headingComboBox = null!;
     private ToggleButton _editModeToggle = null!;
@@ -65,14 +70,28 @@ public partial class MainWindow : Window
         SetMemoryPanelVisible(false);
         SetupAutoSave();
         SetupPreviewRefresh();
+        _vaultRefreshDebounce = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(600)
+        };
+        _vaultRefreshDebounce.Tick += (_, _) =>
+        {
+            _vaultRefreshDebounce.Stop();
+            if (!string.IsNullOrEmpty(_currentVaultPath))
+            {
+                _ = LoadVaultTreeAsync(_currentVaultPath);
+            }
+        };
         SetupKeyBindings();
         LoadMarkdownHighlighting();
         CreateNewTab(DefaultNewFileName, string.Empty, null);
+        _ = RestoreVaultAsync();
     }
 
     private void BindNamedControls()
     {
         _headingComboBox = RequiredControl<ComboBox>("HeadingComboBox");
+        _vaultComboBox = RequiredControl<ComboBox>("VaultComboBox");
         _editModeToggle = RequiredControl<ToggleButton>("EditModeToggle");
         _previewModeToggle = RequiredControl<ToggleButton>("PreviewModeToggle");
         _splitModeToggle = RequiredControl<ToggleButton>("SplitModeToggle");
@@ -1142,16 +1161,179 @@ public partial class MainWindow : Window
             return;
         }
 
+        await OpenVaultAsync(folderPath);
+    }
+
+    private async Task OpenVaultAsync(string vaultPath)
+    {
+        if (!Directory.Exists(vaultPath))
+        {
+            await _vaultManager.RemoveAsync(vaultPath);
+            RefreshVaultComboBox();
+            return;
+        }
+
+        _currentVaultPath = vaultPath;
+        await _vaultManager.SetCurrentAsync(vaultPath);
+        RefreshVaultComboBox();
+        StartVaultWatcher(vaultPath);
+        await LoadVaultTreeAsync(vaultPath);
+        _statusTextBlock.Text = $"已打开知识库: {Path.GetFileName(vaultPath)}";
+    }
+
+    private async Task LoadVaultTreeAsync(string rootPath)
+    {
         _fileTreeView.Items.Clear();
+        var loading = new TreeViewItem { Header = "正在加载…" };
+        _fileTreeView.Items.Add(loading);
+
+        var snapshot = await Task.Run(() => SnapshotVault(rootPath, maxFiles: 4000));
         var rootNode = new TreeViewItem
         {
-            Header = Path.GetFileName(folderPath),
-            Tag = folderPath,
-            FontWeight = FontWeight.Bold
+            Header = Path.GetFileName(rootPath),
+            Tag = rootPath,
+            FontWeight = FontWeight.Bold,
+            IsExpanded = true
         };
+        foreach (var entry in snapshot)
+        {
+            var node = new TreeViewItem { Header = entry.Name, Tag = entry.FullPath };
+            ToolTip.SetTip(node, entry.FullPath);
+            rootNode.Items.Add(node);
+        }
+        if (snapshot.Count == 0)
+        {
+            rootNode.Items.Add(new TreeViewItem { Header = "（空知识库，在此新建 .md 文件）" });
+        }
         _fileTreeView.Items.Add(rootNode);
-        LoadDirectory(folderPath, rootNode);
-        rootNode.IsExpanded = true;
+    }
+
+    private void StartVaultWatcher(string vaultPath)
+    {
+        _vaultWatcher?.Dispose();
+        try
+        {
+            _vaultWatcher = new FileSystemWatcher(vaultPath)
+            {
+                IncludeSubdirectories = true,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite,
+                Filter = "*.*",
+                EnableRaisingEvents = true
+            };
+            _vaultWatcher.Created += (_, _) => ScheduleVaultRefresh();
+            _vaultWatcher.Deleted += (_, _) => ScheduleVaultRefresh();
+            _vaultWatcher.Renamed += (_, _) => ScheduleVaultRefresh();
+            _vaultWatcher.Changed += (_, e) =>
+            {
+                if (e.FullPath.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+                {
+                    ScheduleVaultRefresh();
+                }
+            };
+        }
+        catch
+        {
+            _vaultWatcher = null;
+        }
+    }
+
+    private void ScheduleVaultRefresh()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            _vaultRefreshDebounce?.Stop();
+            _vaultRefreshDebounce?.Start();
+        });
+    }
+
+    private static List<(string Name, string FullPath)> SnapshotVault(string rootPath, int maxFiles)
+    {
+        var result = new List<(string Name, string FullPath)>();
+        try
+        {
+            var stack = new Stack<string>();
+            stack.Push(rootPath);
+            while (stack.Count > 0 && result.Count < maxFiles)
+            {
+                var dir = stack.Pop();
+                string[] subDirs = Array.Empty<string>();
+                string[] files = Array.Empty<string>();
+                try
+                {
+                    subDirs = Directory.GetDirectories(dir);
+                    files = Directory.GetFiles(dir).Where(IsSupportedTextFile).ToArray();
+                }
+                catch
+                {
+                    continue;
+                }
+
+                foreach (var file in files.OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
+                {
+                    if (result.Count >= maxFiles)
+                    {
+                        break;
+                    }
+                    result.Add((Path.GetFileName(file), file));
+                }
+
+                foreach (var sub in subDirs.OrderByDescending(d => d, StringComparer.OrdinalIgnoreCase))
+                {
+                    var name = Path.GetFileName(sub);
+                    if (name.StartsWith(".", StringComparison.Ordinal) ||
+                        name.Equals("node_modules", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals(".git", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    stack.Push(sub);
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return result.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private void RefreshVaultComboBox()
+    {
+        _vaultComboBox.SelectionChanged -= VaultComboBox_SelectionChanged;
+        var items = _vaultManager.RecentVaults
+            .Select(p =>
+            {
+                var name = Path.GetFileName(p.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                var comboItem = new ComboBoxItem { Content = string.IsNullOrEmpty(name) ? p : name, Tag = p };
+                ToolTip.SetTip(comboItem, p);
+                return comboItem;
+            })
+            .Cast<object>()
+            .ToList();
+        _vaultComboBox.ItemsSource = items;
+        _vaultComboBox.SelectedItem = items
+            .OfType<ComboBoxItem>()
+            .FirstOrDefault(x => (x.Tag as string)?.Equals(_vaultManager.CurrentVaultPath, StringComparison.OrdinalIgnoreCase) == true);
+        _vaultComboBox.SelectionChanged += VaultComboBox_SelectionChanged;
+    }
+
+    private async void VaultComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_vaultComboBox.SelectedItem is ComboBoxItem item && item.Tag is string path
+            && !path.Equals(_currentVaultPath, StringComparison.OrdinalIgnoreCase))
+        {
+            await OpenVaultAsync(path);
+        }
+    }
+
+    private async Task RestoreVaultAsync()
+    {
+        await _vaultManager.LoadAsync();
+        RefreshVaultComboBox();
+        if (!string.IsNullOrEmpty(_vaultManager.CurrentVaultPath))
+        {
+            await OpenVaultAsync(_vaultManager.CurrentVaultPath);
+        }
     }
 
     private static void LoadDirectory(string path, TreeViewItem parentNode)
