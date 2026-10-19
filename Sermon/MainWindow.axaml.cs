@@ -36,6 +36,7 @@ public partial class MainWindow : Window
     private FileSystemWatcher? _vaultWatcher;
     private DispatcherTimer? _vaultRefreshDebounce;
     private readonly VaultManager _vaultManager = new();
+    private readonly AppSettings _appSettings = new();
     private string? _currentVaultPath;
     private ComboBox _vaultComboBox = null!;
     private bool _suppressHeadingSelection;
@@ -86,6 +87,15 @@ public partial class MainWindow : Window
         LoadMarkdownHighlighting();
         CreateNewTab(DefaultNewFileName, string.Empty, null);
         _ = RestoreVaultAsync();
+        _ = RestoreSettingsAsync();
+    }
+
+    private async Task RestoreSettingsAsync()
+    {
+        await _appSettings.LoadAsync();
+        RequestedThemeVariant = _appSettings.IsDark ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light;
+        ApplySwissPalette(_appSettings.IsDark);
+        OnSettingsChanged();
     }
 
     private void BindNamedControls()
@@ -128,9 +138,10 @@ public partial class MainWindow : Window
 
     private void SetupAutoSave()
     {
+        _autoSaveTimer?.Stop();
         _autoSaveTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMinutes(2)
+            Interval = TimeSpan.FromMinutes(Math.Clamp(_appSettings.AutoSaveMinutes, 1, 30))
         };
         _autoSaveTimer.Tick += AutoSave_Tick;
         _autoSaveTimer.Start();
@@ -602,17 +613,80 @@ public partial class MainWindow : Window
 
     private async void LightThemeMenuItem_Click(object? sender, RoutedEventArgs e)
     {
-        await ShowInfoDialogAsync("主题", "明亮主题已选中");
+        await ApplyThemeAsync(isDark: false);
     }
 
     private async void DarkThemeMenuItem_Click(object? sender, RoutedEventArgs e)
     {
-        await ShowInfoDialogAsync("主题", "暗黑主题已选中");
+        await ApplyThemeAsync(isDark: true);
+    }
+
+    private async Task ApplyThemeAsync(bool isDark)
+    {
+        _appSettings.Theme = isDark ? "dark" : "light";
+        RequestedThemeVariant = isDark ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light;
+        ApplySwissPalette(isDark);
+        await _appSettings.SaveAsync();
+        _statusTextBlock.Text = isDark ? "已切换到暗黑主题" : "已切换到明亮主题";
+    }
+
+    private void ApplySwissPalette(bool isDark)
+    {
+        if (!Resources.TryGetValue("SwissBackgroundBrush", out var bgObj) || bgObj is not SolidColorBrush bg)
+        {
+            return;
+        }
+
+        SolidColorBrush Surface() => (SolidColorBrush)Resources["SwissSurfaceBrush"]!;
+        SolidColorBrush Panel() => (SolidColorBrush)Resources["SwissPanelBrush"]!;
+        SolidColorBrush Text() => (SolidColorBrush)Resources["SwissTextBrush"]!;
+        SolidColorBrush Muted() => (SolidColorBrush)Resources["SwissMutedTextBrush"]!;
+        SolidColorBrush Line() => (SolidColorBrush)Resources["SwissLineBrush"]!;
+        SolidColorBrush Hover() => (SolidColorBrush)Resources["SwissHoverBrush"]!;
+
+        if (isDark)
+        {
+            // 深瑞士风：炭黑底 + 米白字，红色强调保持不变。
+            Background = new SolidColorBrush(Color.FromRgb(18, 18, 18));
+            bg.Color = Color.FromRgb(18, 18, 18);
+            Surface().Color = Color.FromRgb(28, 28, 28);
+            Panel().Color = Color.FromRgb(24, 24, 24);
+            Text().Color = Color.FromRgb(240, 240, 235);
+            Muted().Color = Color.FromRgb(160, 160, 155);
+            Line().Color = Color.FromRgb(62, 62, 60);
+            Hover().Color = Color.FromRgb(44, 44, 42);
+        }
+        else
+        {
+            Background = new SolidColorBrush(Color.FromRgb(247, 247, 244));
+            bg.Color = Color.FromRgb(247, 247, 244);
+            Surface().Color = Color.FromRgb(255, 255, 255);
+            Panel().Color = Color.FromRgb(250, 250, 248);
+            Text().Color = Color.FromRgb(17, 17, 17);
+            Muted().Color = Color.FromRgb(106, 106, 100);
+            Line().Color = Color.FromRgb(220, 220, 214);
+            Hover().Color = Color.FromRgb(238, 238, 234);
+        }
     }
 
     private async void SettingsMenuItem_Click(object? sender, RoutedEventArgs e)
     {
-        await ShowInfoDialogAsync("设置", "设置功能即将推出！");
+        await SettingsDialog.ShowAsync(this, _appSettings, OnSettingsChanged);
+    }
+
+    private void OnSettingsChanged()
+    {
+        // 字号即时应用到所有已开编辑器；自动保存间隔重建 timer。
+        foreach (var tab in _editorTabControl.Items.OfType<TabItem>())
+        {
+            if (GetTextEditorFromTab(tab) is { } editor)
+            {
+                editor.FontSize = _appSettings.EditorFontSize;
+            }
+        }
+
+        SetupAutoSave();
+        _ = _appSettings.SaveAsync();
     }
 
     private async void AboutMenuItem_Click(object? sender, RoutedEventArgs e)
@@ -689,7 +763,7 @@ public partial class MainWindow : Window
         UpdateWordCount(content);
     }
 
-    private static TextEditor CreateEditor(TextDocument document)
+    private TextEditor CreateEditor(TextDocument document)
     {
         return new TextEditor
         {
@@ -700,7 +774,7 @@ public partial class MainWindow : Window
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             Document = document,
             FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
-            FontSize = 14,
+            FontSize = _appSettings.EditorFontSize,
             Padding = new Thickness(18),
             Background = new SolidColorBrush(Color.FromRgb(255, 255, 255)),
             Foreground = new SolidColorBrush(Color.FromRgb(17, 17, 17)),
