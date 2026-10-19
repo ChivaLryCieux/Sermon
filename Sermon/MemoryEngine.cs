@@ -77,18 +77,23 @@ public sealed class MemoryEngine
             return entries
                 .OrderByDescending(x => x.Importance)
                 .ThenByDescending(x => x.UpdatedAt)
-                .Take(limit)
+                .Take(Math.Clamp(limit, 1, 100))
                 .ToList();
         }
 
         var tokens = Tokenize(q);
+        if (tokens.Count == 0)
+        {
+            return Array.Empty<MemoryEntry>();
+        }
+
         return entries
             .Select(entry => new { Entry = entry, Score = Score(entry, tokens) })
             .Where(x => x.Score > 0)
             .OrderByDescending(x => x.Score)
             .ThenByDescending(x => x.Entry.Importance)
             .ThenByDescending(x => x.Entry.UpdatedAt)
-            .Take(limit)
+            .Take(Math.Clamp(limit, 1, 100))
             .Select(x => x.Entry)
             .ToList();
     }
@@ -132,22 +137,28 @@ public sealed class MemoryEngine
     private static int Score(MemoryEntry entry, IReadOnlyList<string> tokens)
     {
         var text = $"{entry.Title} {entry.Summary} {string.Join(' ', entry.Tags)}".ToLowerInvariant();
-        var score = 0;
+        var match = 0;
         foreach (var token in tokens)
         {
             if (text.Contains(token, StringComparison.Ordinal))
             {
-                score += 3;
+                match += 3;
             }
 
             if (entry.SourceFilePath.Contains(token, StringComparison.OrdinalIgnoreCase))
             {
-                score += 1;
+                match += 1;
             }
         }
 
-        score += Math.Max(1, entry.Importance);
-        return score;
+        // 无任何关键词命中时返回 0，让调用方可以过滤掉不相关条目；
+        // Importance 只做排序微调，避免“恒为正”导致搜索失效。
+        if (match == 0)
+        {
+            return 0;
+        }
+
+        return match * 10 + Math.Clamp(entry.Importance, 1, 5);
     }
 
     private static MemoryEntry CreateMemory(
@@ -228,9 +239,47 @@ public sealed class MemoryEngine
 
     private static List<string> Tokenize(string text)
     {
-        return Regex.Split(text.ToLowerInvariant(), @"\W+")
-            .Where(token => token.Length >= 2)
+        var lowered = text.ToLowerInvariant();
+        // 用空白符与标点切分（保留 CJK 连续文本），避免 \W 在不同正则引擎下对中文处理不一致。
+        var raw = Regex.Split(lowered, @"[\s\p{P}\p{S}]+")
+            .Where(token => token.Length > 0)
             .Distinct()
             .ToList();
+
+        var tokens = new List<string>(raw.Count + 1);
+        foreach (var token in raw)
+        {
+            // 中文单字也有检索意义（如“优”），英文仍要求至少 2 字符以减少噪声。
+            if (token.Length >= 2 || ContainsCjk(token))
+            {
+                tokens.Add(token);
+            }
+        }
+
+        // 保留完整查询做子串匹配，对中文短语（“性能优化”）更友好。
+        var compact = Regex.Replace(lowered, @"[\s\p{P}\p{S}]+", string.Empty);
+        if (compact.Length >= 2 && !tokens.Contains(compact, StringComparer.Ordinal))
+        {
+            tokens.Add(compact);
+        }
+
+        return tokens.Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    private static bool ContainsCjk(string token)
+    {
+        foreach (var ch in token)
+        {
+            if ((ch >= '\u3400' && ch <= '\u4DBF') ||
+                (ch >= '\u4E00' && ch <= '\u9FFF') ||
+                (ch >= '\uF900' && ch <= '\uFAFF') ||
+                (ch >= '\u3040' && ch <= '\u30FF') ||
+                (ch >= '\uAC00' && ch <= '\uD7AF'))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
