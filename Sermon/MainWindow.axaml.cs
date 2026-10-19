@@ -155,6 +155,11 @@ public partial class MainWindow : Window
         KeyBindings.Add(CreateKeyBinding("Ctrl+I", () => ItalicButton_Click(this, new RoutedEventArgs())));
         KeyBindings.Add(CreateKeyBinding("Ctrl+F", () => FindMenuItem_Click(this, new RoutedEventArgs())));
         KeyBindings.Add(CreateKeyBinding("Ctrl+H", () => ReplaceMenuItem_Click(this, new RoutedEventArgs())));
+        KeyBindings.Add(CreateKeyBinding("Ctrl+P", () => _ = WorkbenchDialog.ShowAsync(this, 2)));
+        KeyBindings.Add(CreateKeyBinding("Ctrl+Shift+F", () => _ = WorkbenchDialog.ShowAsync(this, 0)));
+        KeyBindings.Add(CreateKeyBinding("Ctrl+Shift+O", () => _ = WorkbenchDialog.ShowAsync(this, 1)));
+        KeyBindings.Add(CreateKeyBinding("F12", FollowWikiLinkAtCaret));
+        KeyBindings.Add(CreateKeyBinding("Ctrl+Enter", FollowWikiLinkAtCaret));
     }
 
     private static KeyBinding CreateKeyBinding(string gesture, Action action)
@@ -480,6 +485,62 @@ public partial class MainWindow : Window
     private void MemoryPanelToggle_Click(object? sender, RoutedEventArgs e)
     {
         SetMemoryPanelVisible(_memoryPanelToggle.IsChecked == true);
+    }
+
+    internal string? CurrentVaultForDialog => _currentVaultPath;
+
+    internal string CurrentDocumentForDialog => GetCurrentTextEditor()?.Text ?? string.Empty;
+
+    internal List<WorkbenchDialog.WorkbenchCommand> BuildWorkbenchCommands(string query, Action close)
+    {
+        var all = new List<WorkbenchDialog.WorkbenchCommand>
+        {
+            new("新建文档", "Ctrl+N", () => NewFileMenuItem_Click(this, new RoutedEventArgs())),
+            new("打开文件", "Ctrl+O", () => _ = OpenFileAsync()),
+            new("打开知识库", "Ctrl+Shift+O 打开文件夹", () => OpenFolderMenuItem_Click(this, new RoutedEventArgs())),
+            new("保存", "Ctrl+S", SaveCurrentFile),
+            new("另存为", "Ctrl+Shift+S", () => _ = SaveCurrentFileAsAsync()),
+            new("编辑模式", "切换到编辑", () => SetViewMode(ViewMode.Edit)),
+            new("预览模式", "切换到预览", () => SetViewMode(ViewMode.Preview)),
+            new("分屏模式", "编辑+预览", () => SetViewMode(ViewMode.Split)),
+            new("跟随双链", "F12 / Ctrl+Enter", FollowWikiLinkAtCaret),
+            new("提取记忆", "从当前文档提取", () => ExtractMemoryButton_Click(this, new RoutedEventArgs())),
+            new("生成上下文包", "插入 AI 上下文", () => GenerateContextPackButton_Click(this, new RoutedEventArgs())),
+            new("切换记忆面板", "显示/隐藏右侧面板", () => SetMemoryPanelVisible(!_isMemoryPanelVisible))
+        };
+
+        var q = (query ?? string.Empty).Trim();
+        if (q.Length == 0)
+        {
+            return all;
+        }
+
+        return all.Where(c => c.Title.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    internal void OpenFileAndReveal(string filePath)
+    {
+        OpenFileInNewTab(filePath);
+    }
+
+    internal void RevealLine(int lineNumber)
+    {
+        var editor = GetCurrentTextEditor();
+        if (editor == null || lineNumber < 1)
+        {
+            return;
+        }
+
+        try
+        {
+            var line = editor.Document.GetLineByNumber(Math.Min(lineNumber, editor.Document.LineCount));
+            editor.CaretOffset = line.Offset;
+            editor.TextArea.Caret.BringCaretToView();
+            editor.Focus();
+        }
+        catch
+        {
+        }
     }
 
     private void ToggleMemoryPanelMenuItem_Click(object? sender, RoutedEventArgs e)
