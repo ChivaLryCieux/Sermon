@@ -31,14 +31,27 @@ Sermon 是一个跨平台 Markdown 编辑器，采用 Avalonia 构建，可在 W
   - 🎯 智能语法高亮：Markdown语法着色显示
   - 🔍 查找替换：支持Ctrl+F和Ctrl+H快捷键
 
-### 📁 文件管理
+### 📁 文件管理（Vault）
 
+- **Obsidian 式知识库**
+  - 打开文件夹即 Vault，记住最近库、启动自动恢复
+  - 后台快照加载文件树，大库不卡 UI
+  - FileSystemWatcher 防抖自动刷新
 - **便捷的文件操作**
   - 新建、打开、保存、另存为
-  - 文件夹浏览器：树形目录结构
   - 多标签页：同时编辑多个文档
-  - 自动保存：每2分钟自动保存更改
+  - 自动保存：间隔可在设置中配置（1–30 分钟）
   - 文件状态指示：显示未保存的更改
+
+### 🔗 双链与工作台
+
+- **双链 `[[页面]]`**
+  - `F12` / `Ctrl+Enter` 跟随光标处双链，不存在自动新建
+  - 右侧反向链接面板随当前文档刷新
+- **全局搜索 / 大纲 / 命令面板**
+  - `Ctrl+Shift+F` 全 Vault 全文搜索（文件名优先+片段）
+  - `Ctrl+Shift+O` 文档大纲跳转
+  - `Ctrl+P` 命令面板（模糊匹配全部命令）
 
 ### 🧠 AI记忆管理（新）
 
@@ -48,17 +61,18 @@ Sermon 是一个跨平台 Markdown 编辑器，采用 Avalonia 构建，可在 W
   - 记录来源文件、标签、重要度与更新时间
 
 - **记忆检索与上下文组装**
-  - 右侧面板实时关键词检索
+  - 右侧面板实时关键词检索（CJK 友好）
   - 输入任务意图后生成“AI记忆上下文包”
   - 一键将上下文包插入当前文档，便于继续写作或喂给模型
+  - 存储原子写 + 并发串行化 + 损坏备份
 
 ### 🎨 用户界面
 
-- **瑞士风格界面**
+- **瑞士风格界面（浅/深）**
   - 黑白灰为主体，红色作为状态和结构强调
+  - 视图菜单一键切换浅色/深色主题，`settings.json` 持久化
+  - 设置对话框可调编辑器字号与自动保存间隔
   - 清晰的左侧文件区、分割线和编辑区网格
-  - 方正、低装饰的工具按钮和切换按钮
-  - 统一的编辑器和 Markdown 预览排版
 
 - **基础界面能力**
   - Avalonia Fluent 主题
@@ -68,10 +82,10 @@ Sermon 是一个跨平台 Markdown 编辑器，采用 Avalonia 构建，可在 W
 
 ### 📝 Markdown支持
 
-- **高级语法支持**
-  - 标准Markdown语法
-  - 常用语法（标题、列表、引用、代码块、删除线等）
-  - 实时预览渲染
+- **富文本预览**
+  - 行内加粗/斜体/代码/删除线/链接渲染
+  - 表格、任务列表 `- [ ]`、分隔线、嵌套列表
+  - 代码块合并渲染、可选中复制
   - 预览刷新防抖，减少输入时的重复渲染
 
 ## 🛠 技术架构
@@ -80,9 +94,16 @@ Sermon 是一个跨平台 Markdown 编辑器，采用 Avalonia 构建，可在 W
 
 - **核心框架**: .NET 10.0
 - **UI框架**: Avalonia 11.3
+- **MVVM**: CommunityToolkit.Mvvm 8.4.0
 - **主题**: Avalonia Fluent
 - **文本编辑**: AvaloniaEdit 11.4
 - **预览**: Avalonia 原生控件渲染
+
+### MVVM 架构
+
+- `ViewModels/`：`MemoryPanelViewModel`、`VaultPanelViewModel`（`ObservableObject` + `ObservableCollection`）
+- `Services/`：`DocumentService`、`VaultService`、`MemoryService`（纯逻辑、可单测）
+- `MainWindow.*.cs`：仅做绑定、渲染与对话框，主窗口行为由 ViewModel 驱动
 
 ### 从 WPF 迁移到 Avalonia
 
@@ -120,7 +141,27 @@ dotnet run --project Sermon/Sermon.csproj
     ├── App.axaml                # 应用程序资源
     ├── App.axaml.cs             # 应用程序初始化
     ├── MainWindow.axaml         # 主窗口界面
-    ├── MainWindow.axaml.cs      # 主窗口逻辑
+    ├── MainWindow.axaml.cs      # 主窗口逻辑（绑定/渲染/对话框）
+    ├── MainWindow.Memory.cs     # 记忆面板绑定（View 层）
+    ├── ViewModels/              # MVVM 状态
+    │   ├── ViewModelBase.cs
+    │   ├── MemoryPanelViewModel.cs
+    │   └── VaultPanelViewModel.cs
+    ├── Services/                # 可单测业务逻辑
+    │   ├── DocumentService.cs
+    │   ├── VaultService.cs
+    │   └── MemoryService.cs
+    ├── InlineParser.cs          # 行内 Markdown 解析
+    ├── MarkdownPreviewBuilder.cs# 富文本预览
+    ├── VaultManager.cs          # 最近 Vault 持久化
+    ├── VaultSearchEngine.cs     # 全局搜索/大纲
+    ├── WikiLinkResolver.cs      # 双链解析与反链
+    ├── WorkbenchDialog.cs       # 搜索/大纲/命令面板
+    ├── AppSettings.cs           # 主题/字号/自动保存
+    ├── SettingsDialog.cs        # 设置对话框
+    ├── MemoryEngine.cs          # 记忆抽取与检索
+    ├── MemoryEntry.cs
+    ├── MemoryStore.cs           # 记忆原子化存储
     ├── RelayCommand.cs          # 命令绑定类
     ├── Markdown-Mode.xshd       # Markdown语法高亮配置
     ├── assets/
@@ -199,6 +240,13 @@ dotnet publish Sermon/Sermon.csproj -c Release -r linux-x64 --self-contained tru
 - **查找文本**: `Ctrl+F`
 - **替换文本**: `Ctrl+H`
 
+#### Obsidian 式工作流
+
+- **命令面板**: `Ctrl+P`
+- **全局搜索**: `Ctrl+Shift+F`
+- **文档大纲**: `Ctrl+Shift+O`
+- **跟随双链**: `F12` 或 `Ctrl+Enter`
+
 #### 视图模式切换
 
 - 点击工具栏中的视图模式按钮：
@@ -220,9 +268,14 @@ dotnet publish Sermon/Sermon.csproj -c Release -r linux-x64 --self-contained tru
 
 #### 主要类说明
 
-- `MainWindow`: 主窗口类，包含所有 UI 逻辑和事件处理
-- `RelayCommand`: 实现ICommand接口的命令绑定类
-- `ViewMode`: 枚举类型，定义编辑器的视图模式
+- `MainWindow`：主窗口 View 层，只做绑定、渲染与对话框
+- `MemoryPanelViewModel` / `VaultPanelViewModel`：面板状态（Toolkit `ObservableObject`）
+- `DocumentService` / `VaultService` / `MemoryService`：可单测业务逻辑
+- `InlineParser` / `MarkdownPreviewBuilder`：富文本预览
+- `VaultManager` / `VaultSearchEngine` / `WikiLinkResolver`：Vault、搜索、双链
+- `AppSettings` / `SettingsDialog` / `WorkbenchDialog`：设置与工作台
+- `RelayCommand`：实现ICommand接口的命令绑定类
+- `ViewMode`：枚举类型，定义编辑器的视图模式
 
 #### 关键功能实现
 
