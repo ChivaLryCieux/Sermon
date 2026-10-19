@@ -650,52 +650,85 @@ public partial class MainWindow : Window
             Spacing = 8
         };
 
+        var lines = (markdown ?? string.Empty).Replace("\r\n", "\n").Split('\n');
         var inCodeBlock = false;
-        foreach (var rawLine in markdown.Replace("\r\n", "\n").Split('\n'))
+        var codeBuffer = new System.Text.StringBuilder();
+        var i = 0;
+        while (i < lines.Length)
         {
+            var rawLine = lines[i];
             var line = rawLine.TrimEnd();
             if (line.StartsWith("```", StringComparison.Ordinal))
             {
-                inCodeBlock = !inCodeBlock;
+                if (!inCodeBlock)
+                {
+                    inCodeBlock = true;
+                    codeBuffer.Clear();
+                }
+                else
+                {
+                    inCodeBlock = false;
+                    panel.Children.Add(BuildCodeBlock(codeBuffer.ToString()));
+                    codeBuffer.Clear();
+                }
+                i++;
                 continue;
             }
 
             if (inCodeBlock)
             {
-                panel.Children.Add(new TextBlock
-                {
-                    Text = line.Length == 0 ? " " : line,
-                    FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
-                    FontSize = 13,
-                    Background = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
-                    Padding = new Thickness(10, 4),
-                    TextWrapping = TextWrapping.Wrap
-                });
+                codeBuffer.AppendLine(rawLine);
+                i++;
                 continue;
             }
 
             if (line.Length == 0)
             {
                 panel.Children.Add(new Border { Height = 8 });
+                i++;
                 continue;
             }
 
-            var heading = Regex.Match(line, "^(#{1,6})\\s+(.*)$");
+            // 表格：连续的 | 行一次性消费（Obsidian 常用能力，原来直接当纯文本）。
+            if (IsTableRow(line))
+            {
+                var tableLines = new List<string>();
+                while (i < lines.Length && IsTableRow(lines[i].TrimEnd()))
+                {
+                    tableLines.Add(lines[i].TrimEnd());
+                    i++;
+                }
+                panel.Children.Add(BuildTable(tableLines));
+                continue;
+            }
+
+            // 分隔线
+            if (Regex.IsMatch(line.Trim(), @"^(-{3,}|\*{3,}|_{3,})$"))
+            {
+                panel.Children.Add(new Border
+                {
+                    Height = 1,
+                    Margin = new Thickness(0, 8),
+                    Background = new SolidColorBrush(Color.FromRgb(220, 220, 214))
+                });
+                i++;
+                continue;
+            }
+
+            var heading = Regex.Match(line, @"^(#{1,6})\s+(.*)$");
             if (heading.Success)
             {
                 var level = heading.Groups[1].Value.Length;
-                panel.Children.Add(new TextBlock
-                {
-                    Text = StripInlineMarkdown(heading.Groups[2].Value),
-                    FontSize = Math.Max(18, 34 - level * 3),
-                    FontWeight = FontWeight.Bold,
-                    Margin = new Thickness(0, level == 1 ? 12 : 8, 0, 4),
-                    TextWrapping = TextWrapping.Wrap
-                });
+                var rich = MarkdownPreviewBuilder.RichText(
+                    heading.Groups[2].Value,
+                    fontSize: Math.Max(18, 34 - level * 3),
+                    weight: FontWeight.Bold);
+                rich.Margin = new Thickness(0, level == 1 ? 12 : 8, 0, 4);
+                panel.Children.Add(rich);
                 continue;
             }
 
-            var quote = Regex.Match(line, "^>\\s?(.*)$");
+            var quote = Regex.Match(line, @"^>\s?(.*)$");
             if (quote.Success)
             {
                 panel.Children.Add(new Border
@@ -703,35 +736,59 @@ public partial class MainWindow : Window
                     BorderBrush = new SolidColorBrush(Color.FromRgb(224, 0, 27)),
                     BorderThickness = new Thickness(4, 0, 0, 0),
                     Padding = new Thickness(12, 4, 0, 4),
-                    Child = new TextBlock
-                    {
-                        Text = StripInlineMarkdown(quote.Groups[1].Value),
-                        Foreground = new SolidColorBrush(Color.FromRgb(85, 85, 85)),
-                        TextWrapping = TextWrapping.Wrap
-                    }
+                    Child = MarkdownPreviewBuilder.RichText(quote.Groups[1].Value)
                 });
                 continue;
             }
 
-            var listItem = Regex.Match(line, "^\\s*(-|\\*|\\d+\\.)\\s+(.*)$");
+            // 任务列表：- [ ] / - [x]（Obsidian 核心写法）。
+            var task = Regex.Match(line, @"^\s*[-*]\s+\[( |x|X)\]\s+(.*)$");
+            if (task.Success)
+            {
+                var done = !task.Groups[1].Value.Equals(" ", StringComparison.Ordinal);
+                var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                row.Children.Add(new CheckBox { IsChecked = done, IsEnabled = false, VerticalAlignment = VerticalAlignment.Top });
+                var taskText = MarkdownPreviewBuilder.RichText(task.Groups[2].Value);
+                if (done)
+                {
+                    taskText.Foreground = new SolidColorBrush(Color.FromRgb(106, 106, 100));
+                    taskText.TextDecorations = TextDecorations.Strikethrough;
+                }
+                row.Children.Add(taskText);
+                panel.Children.Add(row);
+                continue;
+            }
+
+            var listItem = Regex.Match(line, @"^(\s*)(-|\+|\d+\.)\s+(.*)$");
             if (listItem.Success)
             {
-                panel.Children.Add(new TextBlock
+                var indent = Math.Min(listItem.Groups[1].Value.Length / 2, 4) * 20;
+                var bullet = listItem.Groups[2].Value == "-" || listItem.Groups[2].Value == "+"
+                    ? "• "
+                    : listItem.Groups[2].Value + " ";
+                var row = new StackPanel
                 {
-                    Text = "- " + StripInlineMarkdown(listItem.Groups[2].Value),
-                    FontSize = 15,
-                    TextWrapping = TextWrapping.Wrap
-                });
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 6,
+                    Margin = new Thickness(indent, 0, 0, 0)
+                };
+                row.Children.Add(new TextBlock { Text = bullet, FontSize = 15 });
+                row.Children.Add(MarkdownPreviewBuilder.RichText(listItem.Groups[3].Value));
+                panel.Children.Add(row);
                 continue;
             }
 
-            panel.Children.Add(new TextBlock
-            {
-                Text = StripInlineMarkdown(line),
-                FontSize = 15,
-                LineHeight = 24,
-                TextWrapping = TextWrapping.Wrap
-            });
+            var paragraph = MarkdownPreviewBuilder.RichText(line);
+            paragraph.FontSize = 15;
+            paragraph.LineHeight = 24;
+            panel.Children.Add(paragraph);
+            i++;
+        }
+
+        if (inCodeBlock)
+        {
+            // 未闭合的代码块也照常渲染，避免整篇预览消失。
+            panel.Children.Add(BuildCodeBlock(codeBuffer.ToString()));
         }
 
         if (panel.Children.Count == 0)
@@ -748,10 +805,89 @@ public partial class MainWindow : Window
 
     private static string StripInlineMarkdown(string text)
     {
-        var result = Regex.Replace(text, @"!\[(.*?)\]\((.*?)\)", "$1");
-        result = Regex.Replace(result, @"\[(.*?)\]\((.*?)\)", "$1");
-        result = Regex.Replace(result, @"(`|\*\*|__|\*|_|~~)", string.Empty);
-        return result;
+        return InlineParser.Strip(text);
+    }
+
+    private static Control BuildCodeBlock(string code)
+    {
+        return new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(245, 245, 243)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 214)),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(12, 8),
+            Child = new SelectableTextBlock
+            {
+                Text = code.TrimEnd('\n').Length == 0 ? " " : code.TrimEnd('\n'),
+                FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
+                FontSize = 13,
+                TextWrapping = TextWrapping.Wrap
+            }
+        };
+    }
+
+    private static bool IsTableRow(string line)
+    {
+        var t = line.Trim();
+        return t.StartsWith("|", StringComparison.Ordinal)
+            && t.EndsWith("|", StringComparison.Ordinal)
+            && t.Length > 2;
+    }
+
+    private static Control BuildTable(List<string> tableLines)
+    {
+        var rows = tableLines
+            .Select(l => l.Trim().Trim('|').Split('|').Select(c => c.Trim()).ToList())
+            .Where(cells => cells.Count > 0)
+            .ToList();
+
+        rows = rows.Where(r => !r.All(c => Regex.IsMatch(c, @"^:?-{1,}:?$"))).ToList();
+        if (rows.Count == 0)
+        {
+            return new TextBlock { Text = string.Join("\n", tableLines) };
+        }
+
+        var columnCount = rows.Max(r => r.Count);
+        var grid = new Grid { Margin = new Thickness(0, 4) };
+        for (var c = 0; c < columnCount; c++)
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        }
+
+        for (var r = 0; r < rows.Count; r++)
+        {
+            grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            var isHeader = r == 0;
+            for (var c = 0; c < columnCount; c++)
+            {
+                var cell = c < rows[r].Count ? rows[r][c] : string.Empty;
+                var border = new Border
+                {
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 214)),
+                    BorderThickness = new Thickness(1),
+                    Padding = new Thickness(8, 4),
+                    Background = isHeader
+                        ? new SolidColorBrush(Color.FromRgb(247, 247, 244))
+                        : new SolidColorBrush(Color.FromRgb(255, 255, 255))
+                };
+                var tb = MarkdownPreviewBuilder.RichText(cell, fontSize: 14);
+                if (isHeader)
+                {
+                    tb.FontWeight = FontWeight.Bold;
+                }
+                border.Child = tb;
+                Grid.SetRow(border, r);
+                Grid.SetColumn(border, c);
+                grid.Children.Add(border);
+            }
+        }
+
+        return new Border
+        {
+            BorderBrush = new SolidColorBrush(Color.FromRgb(220, 220, 214)),
+            BorderThickness = new Thickness(1),
+            Child = grid
+        };
     }
 
     private static StackPanel BuildPlainTextContent(string text)
