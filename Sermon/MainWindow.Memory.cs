@@ -1,25 +1,21 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Sermon.Services;
+using Sermon.ViewModels;
 
 namespace Sermon;
 
 public partial class MainWindow
 {
-    private readonly MemoryStore _memoryStore = new();
-    private readonly MemoryEngine _memoryEngine = new();
-    private readonly List<MemoryEntry> _memoryEntries = new();
-    private bool _memoryLoaded;
+    private readonly MemoryPanelViewModel _memoryPanel = new(new MemoryService());
     private TextBox _memorySearchTextBox = null!;
     private TextBox _memoryIntentTextBox = null!;
     private ListBox _memoryListBox = null!;
     private ListBox _backlinkListBox = null!;
     private TextBlock _memoryStatsTextBlock = null!;
-    private List<(string FilePath, string FileName)> _backlinks = new();
 
     private void InitializeMemorySystem()
     {
@@ -28,6 +24,15 @@ public partial class MainWindow
         _memoryListBox = RequiredControl<ListBox>("MemoryListBox");
         _backlinkListBox = RequiredControl<ListBox>("BacklinkListBox");
         _memoryStatsTextBlock = RequiredControl<TextBlock>("MemoryStatsTextBlock");
+        _memoryPanel.Results.CollectionChanged += (_, _) => RenderMemoryResults();
+        _memoryPanel.Backlinks.CollectionChanged += (_, _) => RenderBacklinks();
+        _memoryPanel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MemoryPanelViewModel.StatsText))
+            {
+                _memoryStatsTextBlock.Text = _memoryPanel.StatsText;
+            }
+        };
         _ = LoadMemoryStoreAsync();
     }
 
@@ -35,11 +40,8 @@ public partial class MainWindow
     {
         try
         {
-            var loaded = await _memoryStore.LoadAsync();
-            _memoryEntries.Clear();
-            _memoryEntries.AddRange(loaded.OrderByDescending(x => x.UpdatedAt));
-            _memoryLoaded = true;
-            RefreshMemoryUi();
+            await _memoryPanel.LoadAsync();
+            RenderMemoryResults();
         }
         catch (Exception ex)
         {
@@ -48,37 +50,20 @@ public partial class MainWindow
         }
     }
 
-    private async Task SaveMemoryStoreAsync()
+    private void RenderMemoryResults()
     {
-        await _memoryStore.SaveAsync(_memoryEntries);
+        _memoryListBox.ItemsSource = _memoryPanel.Results.Select(MemoryService.DisplayText).ToList();
+        _memoryStatsTextBlock.Text = _memoryPanel.StatsText;
     }
 
-    private void RefreshMemoryList(string? query)
+    private void RenderBacklinks()
     {
-        if (!_memoryLoaded)
+        if (_memoryPanel.Backlinks.Count == 0)
         {
             return;
         }
 
-        var result = _memoryEngine.Search(_memoryEntries, query ?? string.Empty, limit: 40);
-        _memoryListBox.ItemsSource = result
-            .Select(x =>
-            {
-                var tags = x.Tags.Count == 0 ? "-" : string.Join(", ", x.Tags);
-                return $"[{x.DisplaySource}] {x.Title}\n{x.Summary}\n标签: {tags}";
-            })
-            .ToList();
-    }
-
-    private void UpdateMemoryStats()
-    {
-        var count = _memoryEntries.Count;
-        var topTag = _memoryEntries
-            .SelectMany(x => x.Tags)
-            .GroupBy(x => x)
-            .OrderByDescending(g => g.Count())
-            .FirstOrDefault()?.Key ?? "-";
-        _memoryStatsTextBlock.Text = $"记忆: {count} 条  热门标签: {topTag}";
+        _backlinkListBox.ItemsSource = _memoryPanel.Backlinks.Select(x => x.FileName).ToList();
     }
 
     private string GetCurrentDocumentText()
@@ -106,17 +91,15 @@ public partial class MainWindow
         }
 
         var sourcePath = GetCurrentSourcePath();
-        var extracted = _memoryEngine.ExtractFromMarkdown(content, sourcePath);
-        var mergedCount = MergeMemories(extracted);
-        await SaveMemoryStoreAsync();
-        RefreshMemoryUi();
-        _statusTextBlock.Text = $"记忆提取完成，新增/更新 {mergedCount} 条";
+        var changed = await _memoryPanel.ExtractFromAsync(content, sourcePath);
+        RenderMemoryResults();
+        _statusTextBlock.Text = $"记忆提取完成，新增/更新 {changed} 条";
     }
 
     private async void GenerateContextPackButton_Click(object? sender, RoutedEventArgs e)
     {
-        var intent = _memoryIntentTextBox.Text?.Trim() ?? string.Empty;
-        var pack = _memoryEngine.BuildContextPack(_memoryEntries, intent, limit: 10);
+        _memoryPanel.Intent = _memoryIntentTextBox.Text?.Trim() ?? string.Empty;
+        var pack = _memoryPanel.BuildContextPack();
         var editor = GetCurrentTextEditor();
         if (editor == null)
         {
@@ -137,7 +120,7 @@ public partial class MainWindow
             return;
         }
 
-        var match = _memoryEntries.FirstOrDefault(x =>
+        var match = _memoryPanel.CurrentResults.FirstOrDefault(x =>
             selectedText.Contains(x.Title, StringComparison.Ordinal) &&
             selectedText.Contains(x.Summary, StringComparison.Ordinal));
         if (match == null)
@@ -146,9 +129,8 @@ public partial class MainWindow
             return;
         }
 
-        _memoryEntries.Remove(match);
-        await SaveMemoryStoreAsync();
-        RefreshMemoryUi();
+        await _memoryPanel.DeleteAsync(match);
+        RenderMemoryResults();
         _statusTextBlock.Text = "已删除选中的记忆";
     }
 
@@ -157,16 +139,29 @@ public partial class MainWindow
         RefreshMemoryList(_memorySearchTextBox.Text);
     }
 
+    private void RefreshMemoryList(string? query)
+    {
+        _memoryPanel.SearchQuery = query ?? string.Empty;
+        RenderMemoryResults();
+    }
+
+    private void UpdateMemoryStats()
+    {
+        _memoryPanel.RefreshStats();
+        _memoryStatsTextBlock.Text = _memoryPanel.StatsText;
+    }
+
     private void SyncMemoryPanelWithCurrentTab()
     {
-        RefreshMemoryUi();
+        _memoryPanel.RefreshResults();
+        _memoryPanel.RefreshStats();
+        RenderMemoryResults();
         _ = RefreshBacklinksAsync();
     }
 
     private void RefreshMemoryUi()
     {
-        RefreshMemoryList(_memorySearchTextBox.Text);
-        UpdateMemoryStats();
+        SyncMemoryPanelWithCurrentTab();
     }
 
     private async Task RefreshBacklinksAsync()
@@ -174,21 +169,23 @@ public partial class MainWindow
         var currentPath = GetCurrentSourcePath();
         if (string.IsNullOrEmpty(_currentVaultPath)
             || string.IsNullOrEmpty(currentPath)
-            || currentPath == "未保存文档"
-            || !File.Exists(currentPath))
+            || currentPath == "未保存文档")
         {
-            _backlinks = new List<(string, string)>();
             _backlinkListBox.ItemsSource = new List<string> { "（打开 Vault 内的文档后显示反链）" };
             return;
         }
 
-        var vault = _currentVaultPath;
-        var target = currentPath;
-        var links = await Task.Run(() => WikiLinkResolver.FindBacklinks(vault, target));
-        _backlinks = links;
-        _backlinkListBox.ItemsSource = links.Count == 0
-            ? new List<string> { "（暂无反向链接）" }
-            : links.Select(x => x.FileName).ToList();
+        await _memoryPanel.RefreshBacklinksAsync(_currentVaultPath, currentPath);
+        if (_memoryPanel.Backlinks.Count == 0)
+        {
+            _backlinkListBox.ItemsSource = File.Exists(currentPath)
+                ? new List<string> { "（暂无反向链接）" }
+                : new List<string> { "（打开 Vault 内的文档后显示反链）" };
+        }
+        else
+        {
+            RenderBacklinks();
+        }
     }
 
     private void BacklinkListBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -198,8 +195,8 @@ public partial class MainWindow
             return;
         }
 
-        var match = _backlinks.FirstOrDefault(x => x.FileName.Equals(name, StringComparison.OrdinalIgnoreCase));
-        if (!string.IsNullOrEmpty(match.FilePath))
+        var match = _memoryPanel.Backlinks.FirstOrDefault(x => x.FileName.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (match != null)
         {
             OpenFileInNewTab(match.FilePath);
         }
@@ -255,38 +252,5 @@ public partial class MainWindow
         }
 
         await ShowInfoDialogAsync("双链", "请先打开一个知识库（Vault）再使用双链跳转。");
-    }
-
-    private int MergeMemories(IReadOnlyList<MemoryEntry> incoming)
-    {
-        var changed = 0;
-        foreach (var item in incoming)
-        {
-            var existing = _memoryEntries.FirstOrDefault(x =>
-                x.Title.Equals(item.Title, StringComparison.OrdinalIgnoreCase) &&
-                x.SourceFilePath.Equals(item.SourceFilePath, StringComparison.OrdinalIgnoreCase));
-
-            if (existing == null)
-            {
-                _memoryEntries.Add(item);
-                changed++;
-                continue;
-            }
-
-            if (!existing.Summary.Equals(item.Summary, StringComparison.Ordinal))
-            {
-                existing.Summary = item.Summary;
-                existing.UpdatedAt = DateTimeOffset.UtcNow;
-                existing.Importance = Math.Max(existing.Importance, item.Importance);
-                existing.Tags = existing.Tags
-                    .Concat(item.Tags)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .Take(8)
-                    .ToList();
-                changed++;
-            }
-        }
-
-        return changed;
     }
 }
